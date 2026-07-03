@@ -1,0 +1,27 @@
+{
+  "sources": [
+    {
+      "path": "system_prompt_base.md",
+      "required": true,
+      "kind": "base"
+    },
+    {
+      "path": "../BOOTSTRAP.md",
+      "required": true,
+      "kind": "bootstrap"
+    },
+    {
+      "path": "../AGENT_START.md",
+      "required": true,
+      "kind": "agent_start"
+    }
+  ],
+  "validation": {
+    "required_phrases": [
+      "Treat RC4 as the intake and output pattern",
+      "state, evidence, change, validation, next step",
+      "Prefer technical vocabulary, file names, and canonical contracts",
+      "Avoid line-number anchoring unless the user explicitly asks for it"
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "package": "BAGO_1.0-RC5_REVISADA",
+  "revision": "RC5-R1",
+  "generated_at": "2026-06-29",
+  "files": [
+    {
+      "path": "AUDITORIA_4_ISSUES_RESOLUTION.md",
+      "size_bytes": 1253,
+      "sha256": "0a7f40df9218626d6138df8732a0403479340f465c98280c49f8104789b7c574"
+    },
+    {
+      "path": "CANON_BAGO_1.0-RC5_REVISADA.html",
+      "size_bytes": 280410,
+      "sha256": "850a1eb2185061f57b05c445e0222f97d81304abb81b7cfe0ebd55859a4d3499"
+    },
+    {
+      "path": "CANON_BAGO_1.0-RC5_REVISADA.md",
+      "size_bytes": 189801,
+      "sha256": "9671cf22534269d24a4fcf9e8f8e3a46f4aa746a1043e5637148ba64de5fb0c7"
+    },
+    {
+      "path": "CANON_BAGO_1.0-RC5_REVISADA.pdf",
+      "size_bytes": 342607,
+      "sha256": "91e47dc6b86098a39cc95de2b60fe5fa2ff3658d1974c075c5742265ea890ea4"
+    },
+    {
+      "path": "PREGUNTA_ESPEJO_SPEC.md",
+      "size_bytes": 920,
+      "sha256": "3ae1a814f9040ca93756662b1f1e25850793a909bbea9ab53619e78a95314b9c"
+    },
+    {
+      "path": "RC5_REVISADA_CHANGELOG.md",
+      "size_bytes": 1180,
+      "sha256": "361b9de543f6ca20cae2cf935b11c047563afd96c1656f5d8f8942ceb38317e1"
+    },
+    {
+      "path": "RC5_REVISADA_TRACEABILITY.md",
+      "size_bytes": 1010,
+      "sha256": "57656e022af3247f21a17ceada0ba4e505bec863283f9243034822a1146fb9c7"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 880,
+      "sha256": "ac78ba78646fcecd1332b6c50b1fdc0e7ca91e108f6dd6af3097c1bf8f731e0f"
+    },
+    {
+      "path": "VALIDATION_REPORT.md",
+      "size_bytes": 757,
+      "sha256": "9c88972ccddc795b4a6d660d4f02a66d947a18eaa93003877004d6e3e6c091f3"
+    },
+    {
+      "path": "contracts/ui/v1/demo-state.schema.json",
+      "size_bytes": 976,
+      "sha256": "a3e0b67bab90df33b80624ad08c4d61eff3122b77d75e22297a4aeb9921aaf9d"
+    },
+    {
+      "path": "contracts/ui/v1/manager-context-receipt.schema.json",
+      "size_bytes": 2048,
+      "sha256": "73d62794f521143c1fc5a399c8f00414881c79b54ff9e92d5279a5943654cbc1"
+    },
+    {
+      "path": "contracts/ui/v1/manager-context.schema.json",
+      "size_bytes": 1547,
+      "sha256": "89c1b665d71f0d0b2fff66e142df5000f9931a28e93d3f649a2758181bb0027d"
+    },
+    {
+      "path": "contracts/ui/v1/model-catalog.schema.json",
+      "size_bytes": 3024,
+      "sha256": "2941dab7faceed4861bb2aaf48f65390c171b65c22b30e078abd3e9ffdbc5c34"
+    },
+    {
+      "path": "contracts/ui/v1/presentation-snapshot-state.schema.json",
+      "size_bytes": 1918,
+      "sha256": "d19f884e776c82b3a5c8c95795a857c30bca059be02e8544013490f80d8c313b"
+    },
+    {
+      "path": "contracts/ui/v1/reflexive-question-record.schema.json",
+      "size_bytes": 1873,
+      "sha256": "72669710ce2a86c88b8326106f0cc4c944c4a17719b6d56272dea080987f9d04"
+    },
+    {
+      "path": "rc5-r1.css",
+      "size_bytes": 1585,
+      "sha256": "1321f900cfaa2efa347c359b30070323f866f6198da5ad3aa15a9fb3c469abf6"
+    },
+    {
+      "path": "sources/pregunta_espejo_canva.pptx",
+      "size_bytes": 139088,
+      "sha256": "855086be7e42b384a00f0b259e0a9367ca1c73f5b8f735e82c4b727fe2f6f1db"
+    },
+    {
+      "path": "tests/RC5_R1_TEST_MATRIX.md",
+      "size_bytes": 640,
+      "sha256": "caf5108b8849853e80971a7f3aad081f6ba929351a76addefed5fed387baaecf"
+    }
+  ],
+  "document": {
+    "lines": 6836,
+    "named_tests": 249,
+    "test_suites": {
+      "COGSEC": 15,
+      "EVID": 20,
+      "FALSE": 55,
+      "FIXED": 12,
+      "HUMAN": 12,
+      "INC": 76,
+      "INTERP": 26,
+      "MANAGER": 10,
+      "MEMORY": 15,
+      "MIRROR": 8
+    },
+    "pdf_pages": 89,
+    "json_schemas": 6
+  }
+}

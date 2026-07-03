@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bago://contracts/ui/v1/model-catalog",
+  "title": "ModelCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "installed_items",
+    "configured_items",
+    "detected_items",
+    "available_to_install",
+    "unavailable_items",
+    "catalog_source",
+    "fallback_mode",
+    "last_verified_at"
+  ],
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "provider",
+        "availability_state",
+        "evidence_ids"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtime": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "availability_state": {
+          "enum": [
+            "installed",
+            "configured_unverified",
+            "detected",
+            "available_to_install",
+            "unavailable",
+            "unknown",
+            "loaded",
+            "effective"
+          ]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verified_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "installed_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "configured_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "detected_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "available_to_install": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "unavailable_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "selected_model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "loaded_model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effective_model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "catalog_source": {
+      "enum": [
+        "backend_discovery",
+        "runtime",
+        "provider",
+        "installation_catalog",
+        "last_known_good"
+      ]
+    },
+    "fallback_mode": {
+      "type": "boolean"
+    },
+    "last_verified_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

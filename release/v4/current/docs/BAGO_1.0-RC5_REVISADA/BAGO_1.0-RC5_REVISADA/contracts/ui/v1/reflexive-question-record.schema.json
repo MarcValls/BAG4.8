@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bago://contracts/ui/v1/reflexive-question-record",
+  "title": "ReflexiveQuestionRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "request_id",
+    "literal_question",
+    "object_level_target",
+    "meta_level_target",
+    "reflexivity_detected",
+    "reflexivity_depth",
+    "invariants",
+    "recursion_budget",
+    "status"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "literal_question": {
+      "type": "string"
+    },
+    "object_level_target": {
+      "type": "string"
+    },
+    "meta_level_target": {
+      "type": "string"
+    },
+    "reflexivity_detected": {
+      "const": true
+    },
+    "reflexivity_depth": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "recurrence_relation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fixed_point_condition": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "recursion_budget": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stop_reason": {
+      "enum": [
+        "converged",
+        "budget_exhausted",
+        "contradiction",
+        "insufficient_evidence",
+        "no_material_gain",
+        "not_started"
+      ]
+    },
+    "evidence_anchor_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "enum": [
+        "detected",
+        "analyzing",
+        "semantically_stable",
+        "stable_but_unsupported",
+        "stable_but_contradicted",
+        "stable_but_reflexively_incomplete",
+        "unstable",
+        "blocked"
+      ]
+    }
+  }
+}
