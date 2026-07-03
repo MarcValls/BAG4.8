@@ -15,11 +15,33 @@ win-unpacked/
 *.blockmap
 builder-debug.yml
 builder-effective-config.yaml
+release/v4/
 release/v4/*.zip
 release/v4/*.zip.*
 release/v4/current.manifest.json
 release/v4/current.report.md
 release/v4/current.sha256
+ui-react/dist/
+ui-react/dist.zip
+ui-react/*.zip
+ui_adaptada_bago.zip
+*.log.zip
+
+# Runtime / local state / tooling artifacts
+.bago/
+.qwen/
+.playwright-cli/
+chat-after-link.png
+electron-opened.png
+ui-react/live-preview.png
+ui-react/ui-preview.png
+live-preview.png
+ui-preview.png
+chat-*.png
+electron-*.png
+ui-react/screenshots/
+ui-react/ui_audit_report.md
+ui-react/ui_audit_report.*.md
 
 # Python caches
 __pycache__/
