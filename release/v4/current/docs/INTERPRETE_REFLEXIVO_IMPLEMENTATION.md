@@ -19,6 +19,15 @@ El sistema debe poder:
 - Explicar como llego a la interpretacion.
 - Detectar falsa comprension y autorreferencia.
 
+## 1.1 Complemento operativo CAPTAR
+
+El metodo CAPTAR queda aceptado como complemento pedagogico y operativo del
+interprete reflexivo. No sustituye `ReflexiveQuestionRecord`, `ContextEnvelope`
+ni `ContextReceipt`; define una secuencia previa para convertir una pregunta en
+contrato de respuesta antes de producir la respuesta final.
+
+Referencia: `docs/CAPTAR_INTERPRETATION_MAPPING.md`.
+
 ## 2. Alcance
 
 ### Incluye
