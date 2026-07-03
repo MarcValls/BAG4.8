@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs and packaged binaries
+dist/
+**/dist/
+output/
+**/output/
+dist-test/
+**/dist-test/
+win-unpacked/
+**/win-unpacked/
+*.exe
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml
+release/v4/*.zip
+release/v4/*.zip.*
+release/v4/current.manifest.json
+release/v4/current.report.md
+release/v4/current.sha256
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.coverage
+htmlcov/
+
+# Runtime/local state
+.codex/
+.gabo/
+*.log
+debug_out.txt
+*.tmp
+*.temp
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
