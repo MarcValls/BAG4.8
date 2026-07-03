@@ -65,6 +65,26 @@ class VersionDriftTests(unittest.TestCase):
         self.assertEqual(ui_config["version"], EXPECTED_VERSION)
         self.assertEqual(versions["current"], EXPECTED_VERSION)
 
+    def test_workspace_and_runtime_ui_toolchains_match(self) -> None:
+        workspace_ui = ROOT.parents[2] / "ui-react"
+        runtime_ui = ROOT / "ui-react"
+        if not workspace_ui.exists():
+            self.skipTest("workspace ui-react not available in standalone release tree")
+
+        workspace_package = json.loads((workspace_ui / "package.json").read_text(encoding="utf-8"))
+        runtime_package = json.loads((runtime_ui / "package.json").read_text(encoding="utf-8"))
+        for key in ("scripts", "dependencies", "devDependencies"):
+            with self.subTest(key=key):
+                self.assertEqual(runtime_package.get(key), workspace_package.get(key))
+
+        workspace_lock = json.loads((workspace_ui / "package-lock.json").read_text(encoding="utf-8"))
+        runtime_lock = json.loads((runtime_ui / "package-lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(runtime_lock, workspace_lock)
+
+        workspace_tsconfig = json.loads((workspace_ui / "tsconfig.json").read_text(encoding="utf-8"))
+        runtime_tsconfig = json.loads((runtime_ui / "tsconfig.json").read_text(encoding="utf-8"))
+        self.assertEqual(runtime_tsconfig, workspace_tsconfig)
+
     def test_local_visible_entrypoints_do_not_advertise_stale_runtime(self) -> None:
         home = Path.home()
         paths = [
