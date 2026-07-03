@@ -1,27 +1,27 @@
 # Auditoría UI BAGO
 
-Raíz: `ui-react\src`
+Raíz: `release\v4\current\ui-react\src`
 
-Archivos JSX/JS: 42 | CSS: 12
+Archivos JSX/JS: 43 | CSS: 12
 
 
 ## Colores hardcoded en JSX (deben usar var(--*))
 
-- `ui-react\src\useUiConfig.js:8` `#050813` → `bg: '#050813',`
-- `ui-react\src\useUiConfig.js:9` `#08101f` → `bg2: '#08101f',`
-- `ui-react\src\useUiConfig.js:10` `#0f172a` → `panel: '#0f172a',`
-- `ui-react\src\useUiConfig.js:11` `#121d32` → `panel2: '#121d32',`
-- `ui-react\src\useUiConfig.js:12` `#17233d` → `panel3: '#17233d',`
-- `ui-react\src\useUiConfig.js:13` `#e8eefb` → `text: '#e8eefb',`
-- `ui-react\src\useUiConfig.js:14` `#91a5c0` → `muted: '#91a5c0',`
-- `ui-react\src\useUiConfig.js:15` `#7c8cff` → `brand: '#7c8cff',`
-- `ui-react\src\useUiConfig.js:16` `#4658ff` → `brandStrong: '#4658ff',`
-- `ui-react\src\useUiConfig.js:17` `#22d3ee` → `cyan: '#22d3ee',`
-- `ui-react\src\useUiConfig.js:18` `#34d399` → `ok: '#34d399',`
-- `ui-react\src\useUiConfig.js:19` `#fbbf24` → `warn: '#fbbf24',`
-- `ui-react\src\useUiConfig.js:20` `#fb7185` → `danger: '#fb7185',`
-- `ui-react\src\useUiConfig.js:21` `#c084fc` → `violet: '#c084fc',`
-- `ui-react\src\useUiConfig.js:22` `#fb923c` → `orange: '#fb923c',`
+- `release\v4\current\ui-react\src\useUiConfig.js:8` `#050813` → `bg: '#050813',`
+- `release\v4\current\ui-react\src\useUiConfig.js:9` `#08101f` → `bg2: '#08101f',`
+- `release\v4\current\ui-react\src\useUiConfig.js:10` `#0f172a` → `panel: '#0f172a',`
+- `release\v4\current\ui-react\src\useUiConfig.js:11` `#121d32` → `panel2: '#121d32',`
+- `release\v4\current\ui-react\src\useUiConfig.js:12` `#17233d` → `panel3: '#17233d',`
+- `release\v4\current\ui-react\src\useUiConfig.js:13` `#e8eefb` → `text: '#e8eefb',`
+- `release\v4\current\ui-react\src\useUiConfig.js:14` `#91a5c0` → `muted: '#91a5c0',`
+- `release\v4\current\ui-react\src\useUiConfig.js:15` `#7c8cff` → `brand: '#7c8cff',`
+- `release\v4\current\ui-react\src\useUiConfig.js:16` `#4658ff` → `brandStrong: '#4658ff',`
+- `release\v4\current\ui-react\src\useUiConfig.js:17` `#22d3ee` → `cyan: '#22d3ee',`
+- `release\v4\current\ui-react\src\useUiConfig.js:18` `#34d399` → `ok: '#34d399',`
+- `release\v4\current\ui-react\src\useUiConfig.js:19` `#fbbf24` → `warn: '#fbbf24',`
+- `release\v4\current\ui-react\src\useUiConfig.js:20` `#fb7185` → `danger: '#fb7185',`
+- `release\v4\current\ui-react\src\useUiConfig.js:21` `#c084fc` → `violet: '#c084fc',`
+- `release\v4\current\ui-react\src\useUiConfig.js:22` `#fb923c` → `orange: '#fb923c',`
 
 ## Imports circulares
 
@@ -29,71 +29,71 @@ Archivos JSX/JS: 42 | CSS: 12
 
 ## Selectores CSS posiblemente sin uso
 
-- `ui-react\src\App.css` → `.rail-collapsed`
-- `ui-react\src\App.css` → `.workspace`
-- `ui-react\src\App.css` → `.workspace--chat`
-- `ui-react\src\App.css` → `.workspace--manager`
-- `ui-react\src\App.css` → `.workspace--split`
-- `ui-react\src\App.css` → `.manager-panel`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.workspace--split`
-- `ui-react\src\App.css` → `.workspace--split`
-- `ui-react\src\App.css` → `.workspace`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\App.css` → `.empty-layout`
-- `ui-react\src\styles.css` → `.overlay-led`
-- `ui-react\src\styles.css` → `.inspector-led`
-- `ui-react\src\styles.css` → `.overlay-led`
-- `ui-react\src\styles.css` → `.inspector-led`
-- `ui-react\src\styles.css` → `.overlay-led`
-- `ui-react\src\styles.css` → `.inspector-led`
-- `ui-react\src\styles.css` → `.overlay-led`
-- `ui-react\src\styles.css` → `.state-loading`
-- `ui-react\src\styles.css` → `.inspector-led`
-- `ui-react\src\styles.css` → `.state-loading`
-- `ui-react\src\styles.css` → `.overlay-tab`
-- `ui-react\src\styles.css` → `.overlay-tab`
-- `ui-react\src\styles.css` → `.is-active`
-- `ui-react\src\styles.css` → `.metric-ok`
-- `ui-react\src\styles.css` → `.metric-warn`
-- `ui-react\src\styles.css` → `.metric-muted`
-- `ui-react\src\styles.css` → `.is-ok`
-- `ui-react\src\styles.css` → `.is-ko`
-- `ui-react\src\styles.css` → `.inspector-node`
-- `ui-react\src\styles.css` → `.inspector-node`
-- `ui-react\src\styles.css` → `.is-active`
-- `ui-react\src\styles.css` → `.context-pane-led`
-- `ui-react\src\styles.css` → `.context-pane-led`
-- `ui-react\src\styles.css` → `.is-on`
-- `ui-react\src\styles.css` → `.context-pane-tab`
-- `ui-react\src\styles.css` → `.context-pane-tab`
-- `ui-react\src\styles.css` → `.active`
-- `ui-react\src\styles.css` → `.ctx-method-post`
-- `ui-react\src\styles.css` → `.ctx-method-put`
-- `ui-react\src\styles.css` → `.ctx-method-delete`
-- `ui-react\src\styles.css` → `.ctx-router-item`
-- `ui-react\src\styles.css` → `.ctx-file-item`
-- `ui-react\src\styles.css` → `.active`
-- `ui-react\src\styles.css` → `.ctx-router-item`
-- `ui-react\src\styles.css` → `.ctx-router-item`
-- `ui-react\src\styles.css` → `.unavailable`
-- `ui-react\src\styles.css` → `.ctx-router-item`
-- `ui-react\src\styles.css` → `.selected`
-- `ui-react\src\styles.css` → `.ctx-provider-dot`
-- `ui-react\src\styles.css` → `.on`
-- `ui-react\src\styles.css` → `.ctx-provider-dot`
-- `ui-react\src\styles.css` → `.off`
-- `ui-react\src\styles.css` → `.context-pane-tab`
-- `ui-react\src\styles.css` → `.session-kit`
-- ...y 300 más
+- `release\v4\current\ui-react\src\App.css` → `.rail-collapsed`
+- `release\v4\current\ui-react\src\App.css` → `.workspace`
+- `release\v4\current\ui-react\src\App.css` → `.workspace--chat`
+- `release\v4\current\ui-react\src\App.css` → `.workspace--manager`
+- `release\v4\current\ui-react\src\App.css` → `.workspace--split`
+- `release\v4\current\ui-react\src\App.css` → `.manager-panel`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.command-palette-item`
+- `release\v4\current\ui-react\src\App.css` → `.command-palette-item`
+- `release\v4\current\ui-react\src\App.css` → `.command-palette-item`
+- `release\v4\current\ui-react\src\App.css` → `.is-active`
+- `release\v4\current\ui-react\src\App.css` → `.workspace--split`
+- `release\v4\current\ui-react\src\App.css` → `.workspace--split`
+- `release\v4\current\ui-react\src\App.css` → `.workspace`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\App.css` → `.empty-layout`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-led`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-led`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-led`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-led`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-led`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-led`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-led`
+- `release\v4\current\ui-react\src\styles.css` → `.state-loading`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-led`
+- `release\v4\current\ui-react\src\styles.css` → `.state-loading`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-tab`
+- `release\v4\current\ui-react\src\styles.css` → `.overlay-tab`
+- `release\v4\current\ui-react\src\styles.css` → `.is-active`
+- `release\v4\current\ui-react\src\styles.css` → `.metric-ok`
+- `release\v4\current\ui-react\src\styles.css` → `.metric-warn`
+- `release\v4\current\ui-react\src\styles.css` → `.metric-muted`
+- `release\v4\current\ui-react\src\styles.css` → `.is-ok`
+- `release\v4\current\ui-react\src\styles.css` → `.is-ko`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-node`
+- `release\v4\current\ui-react\src\styles.css` → `.inspector-node`
+- `release\v4\current\ui-react\src\styles.css` → `.is-active`
+- `release\v4\current\ui-react\src\styles.css` → `.context-pane-led`
+- `release\v4\current\ui-react\src\styles.css` → `.context-pane-led`
+- `release\v4\current\ui-react\src\styles.css` → `.is-on`
+- `release\v4\current\ui-react\src\styles.css` → `.context-pane-tab`
+- `release\v4\current\ui-react\src\styles.css` → `.context-pane-tab`
+- `release\v4\current\ui-react\src\styles.css` → `.active`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-method-post`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-method-put`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-method-delete`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-router-item`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-file-item`
+- `release\v4\current\ui-react\src\styles.css` → `.active`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-router-item`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-router-item`
+- `release\v4\current\ui-react\src\styles.css` → `.unavailable`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-router-item`
+- `release\v4\current\ui-react\src\styles.css` → `.selected`
+- `release\v4\current\ui-react\src\styles.css` → `.ctx-provider-dot`
+- `release\v4\current\ui-react\src\styles.css` → `.on`
+- ...y 304 más
 
 ## z-index
 
-Total z-index declarados: 9
+Total z-index declarados: 10
 Capas acordadas: base=1, dropdown=50, overlay=100, toast=200, modal=300
 
 - todos en capas acordadas ✔
