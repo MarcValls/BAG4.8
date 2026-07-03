@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bago://contracts/ui/v1/presentation-snapshot-state",
+  "title": "PresentationSnapshotState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "presentation_state",
+    "snapshot_revision",
+    "snapshot_created_at",
+    "last_refresh_attempt_at",
+    "last_refresh_result",
+    "last_known_good",
+    "backend_reachable"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "presentation_state": {
+      "enum": [
+        "unknown",
+        "loading",
+        "confirmed",
+        "degraded",
+        "error",
+        "stale",
+        "contradicted",
+        "demo"
+      ]
+    },
+    "snapshot_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "snapshot_created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_refresh_attempt_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_refresh_result": {
+      "enum": [
+        "success",
+        "failed",
+        "timeout",
+        "not_attempted"
+      ]
+    },
+    "last_known_good": {
+      "type": "boolean"
+    },
+    "degradation_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "backend_reachable": {
+      "type": "boolean"
+    },
+    "staleness_seconds": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "last_refresh_result": {
+            "enum": [
+              "failed",
+              "timeout"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "presentation_state": {
+            "enum": [
+              "degraded",
+              "error",
+              "stale"
+            ]
+          },
+          "last_known_good": {
+            "const": true
+          }
+        }
+      }
+    }
+  ]
+}

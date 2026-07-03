@@ -1,7 +1,7 @@
 @echo off
 setlocal
-set "BAGO_UI_ROOT=%~dp0release\v4\current"
-for %%I in ("%BAGO_UI_ROOT%") do set "BAGO_UI_ROOT=%%~fI"
+set "BAGO_UI_ROOT=%~dp0"
+for %%I in ("%BAGO_UI_ROOT%.") do set "BAGO_UI_ROOT=%%~fI"
 set "BAGO_UI_URL=http://127.0.0.1:8080"
 
 if not exist "%BAGO_UI_ROOT%\bago_core\launcher.py" (
@@ -15,5 +15,6 @@ for /l %%i in (1,1,20) do (
   if not errorlevel 1 goto :open_ui
   timeout /t 1 /nobreak >nul
 )
+
 :open_ui
 start "" "%BAGO_UI_URL%"

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bago://contracts/ui/v1/manager-context",
+  "title": "ManagerContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "manager_context_id",
+    "session_id",
+    "context_revision",
+    "active_view",
+    "created_at",
+    "integrity_hash"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "manager_context_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspace_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "active_view": {
+      "type": "string",
+      "minLength": 1
+    },
+    "active_center": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "selected_entities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "open_panels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "visible_artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "user_interaction_intent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "integrity_hash": {
+      "type": "string",
+      "minLength": 16
+    }
+  }
+}

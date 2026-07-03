@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "BAGO_UI_ROOT=%~dp0release\v4\current"
+set "BAGO_UI_ROOT=%~dp0"
 for %%I in ("%BAGO_UI_ROOT%.") do set "BAGO_UI_ROOT=%%~fI"
 
 if not exist "%BAGO_UI_ROOT%\package.json" (
