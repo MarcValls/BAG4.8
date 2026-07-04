@@ -1,0 +1,8 @@
+{
+  "version": "4.8.0-beta",
+  "nav": {
+    "chat": true,
+    "manager": true,
+    "terminal": true
+  }
+}

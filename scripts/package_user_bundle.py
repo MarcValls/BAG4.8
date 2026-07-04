@@ -121,7 +121,7 @@ def normalize_release_version(value: str) -> str:
         normalized = normalized[1:]
     if not normalized:
         raise ValueError("release_version vacío")
-    allowed = set("0123456789.-")
+    allowed = set("abcdefghijklmnopqrstuvwxyz0123456789.-")
     if any(ch not in allowed for ch in normalized):
         raise ValueError(f"release_version inválido: {value}")
     return normalized

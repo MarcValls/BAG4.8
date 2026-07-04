@@ -1,5 +1,5 @@
 {
-  "current": "4.8.0",
+  "current": "4.8.0-beta",
   "history": [
     {
       "version": "4.0.0",
@@ -71,7 +71,13 @@
       "version": "4.7",
       "released": "2026-06-21",
       "ended": null,
-      "notes": "BAGO Code Forge 3B: deterministic pipeline (classifier \u2192 task compiler \u2192 context builder \u2192 patch parser \u2192 validation pipeline \u2192 repair loop \u2192 code verdict \u2192 atomic patch \u2192 evidence bundle) with SAFE/STAGED/APPLY/AUTONOMOUS modes. llama3.2:3b plans and patches; BAGO stays the validator."
+      "notes": "BAGO Code Forge 3B: deterministic pipeline (classifier → task compiler → context builder → patch parser → validation pipeline → repair loop → code verdict → atomic patch → evidence bundle) with SAFE/STAGED/APPLY/AUTONOMOUS modes. llama3.2:3b plans and patches; BAGO stays the validator."
+    },
+    {
+      "version": "4.8.0-beta",
+      "released": "2026-07-04",
+      "ended": null,
+      "notes": "Beta prerelease de BAGO 4.8.0."
     }
   ]
 }
