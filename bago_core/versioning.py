@@ -12,7 +12,7 @@ def repo_root() -> Path:
 def _candidate_release_files(root: Path) -> list[Path]:
     return [
         root / "release_version.txt",
-        root / ".bago" / "release_version.txt",
+        root / ".gabo" / "release_version.txt",
     ]
 
 

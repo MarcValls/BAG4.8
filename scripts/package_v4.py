@@ -56,12 +56,12 @@ INCLUDE_DIRS = [
     "bago_core",
     "electron",
     "manager",
-    ".bago/core",
-    ".bago/chat",
-    ".bago/knowledge",
-    ".bago/providers",
-    ".bago/api",
-    ".bago/tools",
+    ".gabo/core",
+    ".gabo/chat",
+    ".gabo/knowledge",
+    ".gabo/providers",
+    ".gabo/api",
+    ".gabo/tools",
     "docs",
     "scripts",
     "tests",
@@ -80,10 +80,10 @@ EXCLUDED_PARTS = {
 }
 
 EXCLUDED_PREFIXES = [
-    ".bago/state",
-    ".bago/logs",
-    ".bago/launch",
-    ".bago/tools/.bago",
+    ".gabo/state",
+    ".gabo/logs",
+    ".gabo/launch",
+    ".gabo/tools/.gabo",
     "PLAN_VERTICE",
     "release",
     "dist",
@@ -360,11 +360,11 @@ def _run_tests() -> int:
             required_names = {
                 "bago_core/translators/__init__.py",
                 "install-assistant.ps1",
-                ".bago/core/session_manager.py",
-                ".bago/chat/commands.py",
-                ".bago/api/bridge.py",
-                ".bago/providers/ollama_local.py",
-                ".bago/tools/tool_registry.py",
+                ".gabo/core/session_manager.py",
+                ".gabo/chat/commands.py",
+                ".gabo/api/bridge.py",
+                ".gabo/providers/ollama_local.py",
+                ".gabo/tools/tool_registry.py",
                 "docs/contracts/bago_v4_runtime_contract.json",
                 "docs/contracts/bago_v4_repl_contract.md",
                 "docs/contracts/bago_v4_evidence_contract.md",
@@ -377,7 +377,7 @@ def _run_tests() -> int:
             }
             missing = sorted(required_names - names)
             assert not missing, f"missing bundle entries: {missing}"
-            assert ".bago/state/context.json" not in names
+            assert ".gabo/state/context.json" not in names
             assert any(name.startswith("ui-react/src/") for name in names)
             leaked = sorted(
                 name for name in names

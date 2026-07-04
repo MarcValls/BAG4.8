@@ -50,14 +50,14 @@ foreach ($copy in ($DefaultCandidates + $CopyRoot)) {
 
 # ── Archivos clave a comparar (relativos a cada raíz BAGO) ───────────────────
 $KeyFiles = @(
-  '.bago\api\bridge.py'
-  '.bago\api\api_dispatch.py'
-  '.bago\api\api_auth.py'
-  '.bago\api\api_serializers.py'
-  '.bago\api\request_context.py'
-  '.bago\api\handlers_chat.py'
-  '.bago\api\handlers_router.py'
-  '.bago\api\handlers_routes.py'
+  '.gabo\api\bridge.py'
+  '.gabo\api\api_dispatch.py'
+  '.gabo\api\api_auth.py'
+  '.gabo\api\api_serializers.py'
+  '.gabo\api\request_context.py'
+  '.gabo\api\handlers_chat.py'
+  '.gabo\api\handlers_router.py'
+  '.gabo\api\handlers_routes.py'
   'ui-react\src\styles.css'
   'ui-react\src\api.js'
   'ui-react\src\App.jsx'

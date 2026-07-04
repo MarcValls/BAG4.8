@@ -8,7 +8,7 @@ Ejecuta chequeos end-to-end y reporta PASS/FAIL/WARN por cada dimensión:
   4. Ollama local responde
   5. Modelos locales visibles
   6. ui-react/src tiene estructura mínima
-  7. .bago/api/ tiene los módulos esperados
+  7. .gabo/api/ tiene los módulos esperados
   8. verify-master.ps1 existe (si aplica)
   9. Git repo inicializado (si aplica)
 
@@ -131,7 +131,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append(_check("install_selection", checks, sel_ok, sel_detail))
 
     # ── 3. Bridge importa ────────────────────────────────────────────────────
-    bridge_dir = BAGO_ROOT / ".bago" / "api"
+    bridge_dir = BAGO_ROOT / ".gabo" / "api"
     bridge_ok = bridge_dir.exists() and (bridge_dir / "bridge.py").exists()
     bridge_detail = ""
     if bridge_ok:
@@ -153,7 +153,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             bridge_ok = False
             fails += 1
     else:
-        bridge_detail = ".bago/api/bridge.py no encontrado"
+        bridge_detail = ".gabo/api/bridge.py no encontrado"
         fails += 1
     checks.append(_check("bridge_import", checks, bridge_ok, bridge_detail))
 
@@ -185,13 +185,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         fails += 1
     checks.append(_check("ui_react_structure", checks, ui_ok, ui_detail))
 
-    # ── 6. .bago/api/ módulos esperados ────────────────────────────────────────
+    # ── 6. .gabo/api/ módulos esperados ────────────────────────────────────────
     expected_modules = [
         "bridge.py", "api_dispatch.py", "api_auth.py", "api_serializers.py",
         "request_context.py", "handlers_chat.py", "handlers_router.py",
         "handlers_routes.py",
     ]
-    api_dir = BAGO_ROOT / ".bago" / "api"
+    api_dir = BAGO_ROOT / ".gabo" / "api"
     present_mods = [m for m in expected_modules if (api_dir / m).exists()]
     api_ok = len(present_mods) == len(expected_modules)
     api_detail = f"{len(present_mods)}/{len(expected_modules)} módulos presentes"

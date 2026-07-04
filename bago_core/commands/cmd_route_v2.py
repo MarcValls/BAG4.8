@@ -18,8 +18,10 @@ import json
 import sys
 from pathlib import Path
 
+from bago_core.workspace_paths import workspace_root
+
 def _user_bago_root() -> Path:
-    return Path.home() / ".bago"
+    return workspace_root()
 
 def _read_runtime(root: Path) -> dict:
     p = root / "routing_runtime.json"
@@ -136,7 +138,7 @@ def build_subparser(parser) -> None:
     activate_p = sp.add_parser("activate", help="Activate a preset and write routing_runtime.json")
     activate_p.add_argument("--preset", required=True, help="Preset to activate")
     for sub in (status_p, validate_p, activate_p):
-        sub.add_argument("--user-bago", default=None, help="Path to user .bago (default: ~/.bago)")
+        sub.add_argument("--user-bago", default=None, help="Path to user workspace root (default: ~/.gabo)")
         sub.add_argument("--repo", default=None, help="Path to BAGO repo root (default: parent of user-bago)")
         sub.add_argument("--json", action="store_true", help="Emit JSON output")
         sub.add_argument("--tolerant", action="store_true", help="Exit 0 even on invalid contract")

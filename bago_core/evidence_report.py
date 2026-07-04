@@ -263,7 +263,7 @@ def _build_manifest_dict(
             "provider": provider,
             "model": model,
             "session_id": session_id,
-            "state_root": ".bago\\state",
+            "state_root": ".gabo\\state",
         },
         "status": "pass"
             if all(item["status"] == "pass" for item in checks)

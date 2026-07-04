@@ -26,8 +26,8 @@ EXCLUDE_DIRS = {
 }
 
 EXCLUDE_PATH_PARTS = {
-    ".bago/state",
-    ".bago\\state",
+    ".gabo/state",
+    ".gabo\\state",
 }
 
 
@@ -124,8 +124,8 @@ def _run_tests() -> int:
         root = Path(td)
         (root / "keep.txt").write_text("ok", encoding="utf-8")
         (root / ".git").mkdir()
-        (root / ".bago").mkdir()
-        (root / ".bago" / "state").mkdir(parents=True)
+        (root / ".gabo").mkdir()
+        (root / ".gabo" / "state").mkdir(parents=True)
         old_cwd = Path.cwd()
         try:
             os.chdir(root)
@@ -135,7 +135,7 @@ def _run_tests() -> int:
             with zipfile.ZipFile(bundle, "r") as zf:
                 names = zf.namelist()
                 assert "keep.txt" in names
-                assert ".bago/state" not in "\n".join(names)
+                assert ".gabo/state" not in "\n".join(names)
         finally:
             os.chdir(old_cwd)
     print("publish_release.py --test: ALL PASS")

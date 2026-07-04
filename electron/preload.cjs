@@ -7,7 +7,6 @@ const ROOT_DIR = path.join(__dirname, '..');
 const USER_ROOT = process.env.LOCALAPPDATA
   ? path.join(process.env.LOCALAPPDATA, 'BAGO')
   : path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
-const LEGACY_USER_ROOT = path.join(os.homedir(), '.bago');
 
 function asPath(p) {
   return String(p || '').trim();
@@ -34,7 +33,7 @@ function readVersionsCurrent(root) {
 function readReleaseVersion() {
   const candidates = [
     path.join(ROOT_DIR, 'release_version.txt'),
-    path.join(ROOT_DIR, '.bago', 'release_version.txt'),
+    path.join(ROOT_DIR, '.gabo', 'release_version.txt'),
   ];
   for (const candidate of candidates) {
     const text = readText(candidate);
@@ -92,10 +91,7 @@ function emptySelection() {
 }
 
 function readInstallSelection() {
-  const file = firstExistingPath([
-    selectionPath(),
-    path.join(LEGACY_USER_ROOT, 'install_selection.json')
-  ]) || selectionPath();
+  const file = selectionPath();
   if (!exists(file)) return { ...emptySelection(), selection_file: file };
   try {
     const data = JSON.parse(readText(file) || '{}');
@@ -200,7 +196,7 @@ function readTag(root) {
 }
 
 function readVersion(root) {
-  const candidates = [path.join(root, 'release_version.txt'), path.join(root, '.bago', 'release_version.txt')];
+  const candidates = [path.join(root, 'release_version.txt'), path.join(root, '.gabo', 'release_version.txt')];
   for (const candidate of candidates) {
     const text = readText(candidate);
     if (text) return text;
@@ -212,8 +208,7 @@ function classifyInstall(root, mode, description, selection = readInstallSelecti
   const has = rel => exists(path.join(root, rel));
   const statePath = firstExistingPath([
     path.join(root, 'state', 'supervisor.json'),
-    path.join(USER_ROOT, 'state', 'supervisor.json'),
-    path.join(LEGACY_USER_ROOT, 'state', 'supervisor.json')
+    path.join(USER_ROOT, 'state', 'supervisor.json')
   ]);
   let supervisorState = null;
   let supervisorAlive = false;
@@ -284,9 +279,6 @@ function scanInstallations(extraPaths = []) {
     [path.join(USER_ROOT, 'active'), 'work', 'Active / work'],
     [path.join(USER_ROOT, 'launch'), 'ign', 'Ignition / launch'],
     [path.join(USER_ROOT, 'dev'), 'dev', 'Dev tree (user)'],
-    [path.join(LEGACY_USER_ROOT, 'active'), 'work', 'Legacy active / work'],
-    [path.join(LEGACY_USER_ROOT, 'launch'), 'ign', 'Legacy ignition / launch'],
-    [path.join(LEGACY_USER_ROOT, 'dev'), 'dev', 'Legacy dev tree'],
     [path.join(home, 'BAGO'), 'source', 'Source tree']
   ];
   for (const p of extraPaths) {

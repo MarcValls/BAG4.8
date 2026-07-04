@@ -183,8 +183,19 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
   const repoRoot = String(status.repo_root || binding.repo_root || projectRoot || '');
   const repoBranch = String(status.repo_branch || binding.repo_branch || '');
   const activeBridges = toStringList(status.active_bridges || session.active_bridges);
-  const bindingConfirmed = Boolean(status.binding_confirmed ?? binding.binding_confirmed);
-  const bindingReason = String(status.binding_reason || binding.binding_reason || '');
+  const bindingConfirmed = Boolean(
+    status.workspace_state?.binding_confirmed
+    || session.workspace_state?.binding_confirmed
+    || binding.binding_confirmed
+    || status.binding_confirmed
+  );
+  const bindingReason = String(
+    status.workspace_state?.binding_reason
+    || session.workspace_state?.binding_reason
+    || binding.binding_reason
+    || status.binding_reason
+    || ''
+  );
   const workspaceState = String(status.workspace_state || session.workspace_state?.workspace_state || '');
   const manifestState: UiBootstrapSnapshot['workspace']['manifestState'] = workspaceState.includes('legacy')
     ? 'legacy'

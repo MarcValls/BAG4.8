@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 ingest_knowledge.py — Población canónica de knowledge.db y embeddings.db desde
-MarcValls/bago-knowledge clonado en .bago/knowledge/source/.
+MarcValls/bago-knowledge clonado en .gabo/knowledge/source/.
 
 Uso:
     python scripts\\ingest_knowledge.py
-    python scripts\\ingest_knowledge.py --source .bago\\knowledge\\source
+    python scripts\\ingest_knowledge.py --source .gabo\\knowledge\\source
 """
 from __future__ import annotations
 

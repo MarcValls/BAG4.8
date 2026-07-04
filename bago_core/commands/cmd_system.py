@@ -10,11 +10,11 @@ BAGO_ROOT = Path(__file__).resolve().parents[2]
 
 for _path in (
     BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".bago" / "core",
-    BAGO_ROOT / ".bago" / "chat",
-    BAGO_ROOT / ".bago" / "providers",
-    BAGO_ROOT / ".bago" / "api",
-    BAGO_ROOT / ".bago" / "tools",
+    BAGO_ROOT / ".gabo" / "core",
+    BAGO_ROOT / ".gabo" / "chat",
+    BAGO_ROOT / ".gabo" / "providers",
+    BAGO_ROOT / ".gabo" / "api",
+    BAGO_ROOT / ".gabo" / "tools",
 ):
     _path_s = str(_path)
     if _path_s not in sys.path:
@@ -104,12 +104,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
     import tempfile
 
     def _is_bago_root(candidate: Path) -> bool:
-        return (candidate / "bago_core" / "cli.py").exists() and (candidate / ".bago").exists()
+        return (candidate / "bago_core" / "cli.py").exists() and (candidate / ".gabo").exists()
 
     requested_base = Path(getattr(args, "base_path", "") or ".").resolve()
     module_base = BAGO_ROOT.resolve()
     base = requested_base if _is_bago_root(requested_base) else module_base
-    bago_dir = base / ".bago"
+    bago_dir = base / ".gabo"
     checks: list[dict] = []
     fails = 0
 
@@ -127,7 +127,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     print("\nBAGO VALIDATE\n" + "-" * 40)
 
-    # -- 1. Syntax: compilar todos los .py en .bago/ y bago_core/ --------------
+    # -- 1. Syntax: compilar todos los .py en .gabo/ y bago_core/ --------------
     py_errors: list[str] = []
     for search_root in [bago_dir, base / "bago_core"]:
         if not search_root.exists():
@@ -227,14 +227,14 @@ def cmd_validate(args: argparse.Namespace) -> int:
         cors_detail = "sin wildcard" if cors_ok else "wildcard CORS detectado"
     _check("cors_no_wildcard", cors_ok, cors_detail)
 
-    # -- 7. .gitignore excluye .bago/state/ ------------------------------------
+    # -- 7. .gitignore excluye .gabo/state/ ------------------------------------
     gitignore = base / ".gitignore"
     gitignore_ok = False
     gitignore_detail = ".gitignore no encontrado"
     if gitignore.exists():
         content = gitignore.read_text(encoding="utf-8")
-        gitignore_ok = ".bago/state/" in content or ".bago/state" in content
-        gitignore_detail = "excluye .bago/state/" if gitignore_ok else ".bago/state/ no excluido"
+        gitignore_ok = ".gabo/state/" in content or ".gabo/state" in content
+        gitignore_detail = "excluye .gabo/state/" if gitignore_ok else ".gabo/state/ no excluido"
     _check("state_excluded_from_vcs", gitignore_ok, gitignore_detail)
 
     # -- 8. Culpas abiertas -----------------------------------------------------

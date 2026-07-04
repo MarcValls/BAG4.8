@@ -17,11 +17,11 @@ BAGO_ROOT = Path(__file__).resolve().parents[2]
 
 for _path in (
     BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".bago" / "core",
-    BAGO_ROOT / ".bago" / "chat",
-    BAGO_ROOT / ".bago" / "providers",
-    BAGO_ROOT / ".bago" / "api",
-    BAGO_ROOT / ".bago" / "tools",
+    BAGO_ROOT / ".gabo" / "core",
+    BAGO_ROOT / ".gabo" / "chat",
+    BAGO_ROOT / ".gabo" / "providers",
+    BAGO_ROOT / ".gabo" / "api",
+    BAGO_ROOT / ".gabo" / "tools",
 ):
     _path_s = str(_path)
     if _path_s not in sys.path:
@@ -115,7 +115,7 @@ def _start_monitor_bg(base_path: str, port: int = 7890) -> None:
     def _run():
         try:
             os.environ["BAGO_STATE_ROOT"] = str(_resolve_state_root())
-            sys.path.insert(0, str(BAGO_ROOT / ".bago" / "tools"))
+            sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "tools"))
             from process_monitor import serve
             serve(BAGO_ROOT, port=port, refresh=5, silent=True)
         except Exception:
@@ -290,7 +290,7 @@ def cmd_exec(args: argparse.Namespace) -> int:
     from switch_engine import SwitchEngine
     from system_prompt import get_system_prompt
 
-    repl_commands_path = BAGO_ROOT / ".bago" / "chat" / "commands.py"
+    repl_commands_path = BAGO_ROOT / ".gabo" / "chat" / "commands.py"
     spec = importlib.util.spec_from_file_location("bago_repl_commands_exec", repl_commands_path)
     if spec is None or spec.loader is None:
         print(f"No se pudo cargar el ejecutor REPL desde {repl_commands_path}")

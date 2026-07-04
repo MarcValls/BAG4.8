@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-CORE_DIR = Path(__file__).resolve().parents[1] / ".bago" / "core"
+from .workspace_paths import workspace_root
+
+CORE_DIR = Path(__file__).resolve().parents[1] / ".gabo" / "core"
 if str(CORE_DIR) not in sys.path:
     sys.path.insert(0, str(CORE_DIR))
 
@@ -22,11 +24,11 @@ def _base_path(value: str) -> Path:
 
 
 def _summary_path(base_path: Path, session_id: str) -> Path:
-    return base_path / ".bago" / "state" / "sessions" / f"{session_id}.json"
+    return base_path / ".gabo" / "state" / "sessions" / f"{session_id}.json"
 
 
 def list_sessions(base_path: Path) -> list[dict[str, Any]]:
-    sessions = ContextStore.list_sessions(base_dir=base_path / ".bago" / "state")
+    sessions = ContextStore.list_sessions(base_dir=base_path / ".gabo" / "state")
     for item in sessions:
         path = _summary_path(base_path, item["sid"])
         if not path.exists():

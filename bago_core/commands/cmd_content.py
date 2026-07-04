@@ -11,11 +11,11 @@ BAGO_ROOT = Path(__file__).resolve().parents[2]
 
 for _path in (
     BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".bago" / "core",
-    BAGO_ROOT / ".bago" / "chat",
-    BAGO_ROOT / ".bago" / "providers",
-    BAGO_ROOT / ".bago" / "api",
-    BAGO_ROOT / ".bago" / "tools",
+    BAGO_ROOT / ".gabo" / "core",
+    BAGO_ROOT / ".gabo" / "chat",
+    BAGO_ROOT / ".gabo" / "providers",
+    BAGO_ROOT / ".gabo" / "api",
+    BAGO_ROOT / ".gabo" / "tools",
 ):
     _path_s = str(_path)
     if _path_s not in sys.path:
@@ -54,7 +54,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
 
 def cmd_config(args: argparse.Namespace) -> int:
     import sys
-    sys.path.insert(0, str(BAGO_ROOT / ".bago" / "core"))
+    sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "core"))
     from config_manager import ConfigManager
     from credential_manager import CredentialManager
 
@@ -118,8 +118,8 @@ def cmd_config(args: argparse.Namespace) -> int:
 
 def cmd_serve(args: argparse.Namespace) -> int:
     import sys
-    sys.path.insert(0, str(BAGO_ROOT / ".bago" / "core"))
-    sys.path.insert(0, str(BAGO_ROOT / ".bago" / "api"))
+    sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "core"))
+    sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "api"))
     from session_manager import SessionManager
     from switch_engine import SwitchEngine
     from bridge import BagoAPIServer
@@ -215,12 +215,12 @@ def cmd_manager(args: argparse.Namespace) -> int:
 def cmd_api(args: argparse.Namespace) -> int:
     """Inspeccion offline del bridge HTTP.
 
-    No arranca el server. Importa `api_routes` desde `.bago/api/` y
+    No arranca el server. Importa `api_routes` desde `.gabo/api/` y
     imprime la tabla viva de rutas. Pensado para que un agente (humano
     o IA) descubra que endpoints existen antes de hacer curl.
     """
     root = Path(args.root).resolve() if args.root else BAGO_ROOT
-    sys.path.insert(0, str(root / ".bago" / "api"))
+    sys.path.insert(0, str(root / ".gabo" / "api"))
     try:
         from api_routes import all_routes, api_prefixes  # type: ignore
     except Exception as exc:

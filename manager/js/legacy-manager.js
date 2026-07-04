@@ -498,8 +498,8 @@ function buildActions(inst,isSource){
     {label:'Fijar BAGO persona',desc:'Usar bago-llama32-bago-persona como modelo por defecto',cmd:cd+'; python bago_core/cli.py llm start --provider ollama-local --model bago-llama32-bago-persona --persist-default --dry-run'},
     {label:'Activar OpenRouter',desc:'Marca provider cloud como habilitado',cmd:cd+'; python bago_core/cli.py config set providers.openrouter.enabled true'},
     {label:'Activar Anthropic',desc:'Marca provider cloud como habilitado',cmd:cd+'; python bago_core/cli.py config set providers.anthropic.enabled true'},
-    {label:'Editar .bago/config.json',desc:'Config de providers de esta instalación',cmd:'notepad "'+path+'\\.bago\\config.json"'},
-    {label:'Abrir carpeta .bago',desc:'Revisar state/config/provider local',cmd:'explorer "'+path+'\\.bago"'},
+    {label:'Editar .gabo/config.json',desc:'Config de providers de esta instalación',cmd:'notepad "'+path+'\\.gabo\\config.json"'},
+    {label:'Abrir carpeta .gabo',desc:'Revisar state/config/provider local',cmd:'explorer "'+path+'\\.gabo"'},
   ]));
   groups.push(actionGroup('Conocimiento','🧠',[
     {label:'Estado de la knowledge base',desc:'chunks, fallback, embeddings',cmd:cd+'; python bago_core/cli.py knowledge status'},

@@ -16,7 +16,7 @@ def _env_path(name: str) -> Path | None:
 
 
 def legacy_user_root() -> Path:
-    return Path.home() / ".bago"
+    return user_root()
 
 
 def user_root() -> Path:

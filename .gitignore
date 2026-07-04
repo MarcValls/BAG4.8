@@ -54,6 +54,8 @@ env/
 *.bak
 *.py.new
 .staging/
+.bago/
+.gabo/
 bago_core/parsers_legacy_*.py
 tools/_diff_*.py
 dist/

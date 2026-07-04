@@ -15,9 +15,11 @@ import re
 import sys
 from pathlib import Path
 
+from bago_core.workspace_paths import workspace_root
+
 
 def _user_bago_root() -> Path:
-    return Path.home() / ".bago"
+    return workspace_root()
 
 
 def _user_pi_root() -> Path:
@@ -72,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="inventory.csv")
     args = parser.parse_args(argv)
     rows: list[dict] = []
-    rows += _walk(Path(args.user_bago or str(_user_bago_root())), [("bago", "state/sessions")])
+    user_bago = Path(args.user_bago or str(_user_bago_root()))
+    rows += _walk(user_bago, [("gabo", "state/sessions")])
     rows += _walk(Path(args.user_pi or str(_user_pi_root())), [("pi", "agent/sessions")])
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["kind", "drive", "status", "size", "mtime", "path"])

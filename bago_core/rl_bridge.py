@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .workspace_paths import workspace_root
+
 try:
     from .bago_true_bridge import detect_bago_true
 except ImportError:
@@ -24,7 +26,7 @@ class RLBridge:
     def __init__(self, base_path: str | Path, true_root: str | Path | None = None) -> None:
         self.base_path = Path(base_path)
         self.true_root = true_root
-        self.state_dir = self.base_path / ".bago" / "state"
+        self.state_dir = self.base_path / ".gabo" / "state"
         self.state_file = self.state_dir / "rl_bridge.json"
         self.transition_log = self.state_dir / "rl_transitions.jsonl"
 

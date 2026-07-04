@@ -289,7 +289,7 @@ function createDependencyService(ctx) {
     const script = [
       'import pathlib, sys',
       'root = pathlib.Path(sys.argv[1])',
-      'sys.path.insert(0, str(root / ".bago" / "core"))',
+      'sys.path.insert(0, str(root / ".gabo" / "core"))',
       'from credential_manager import CredentialManager',
       'cm = CredentialManager(base_path=str(root))',
       'cm.set(sys.argv[2], sys.argv[3], sys.argv[4])',
@@ -454,7 +454,7 @@ function createDependencyService(ctx) {
   }
 
   async function runInstallPreflight(targetDir) {
-    const dir = targetDir || path.join(app.getPath('home'), '.bago', 'active');
+    const dir = targetDir || path.join(app.getPath('home'), '.gabo', 'active');
     const checks = await Promise.all([
       checkTool('Python', 'python', ['--version']),
       checkTool('PowerShell', 'powershell.exe', ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']),
@@ -464,7 +464,7 @@ function createDependencyService(ctx) {
     let writeOk = false;
     let writeDetail = '';
     try {
-      const probe = path.join(dir, '.bago-preflight-' + Date.now());
+      const probe = path.join(dir, '.gabo-preflight-' + Date.now());
       fs.writeFileSync(probe, 'ok');
       fs.unlinkSync(probe);
       writeOk = true;

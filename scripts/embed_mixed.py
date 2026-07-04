@@ -17,6 +17,8 @@ import sys
 import datetime as _dt
 from pathlib import Path
 
+from bago_core.workspace_paths import workspace_root
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ingest_knowledge as ik  # type: ignore
 
@@ -29,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--embed-model", default="llama3.2:3b")
     parser.add_argument("--embed-max-chars", type=int, default=4096)
     args = parser.parse_args(argv)
-    user_bago = Path(args.user_bago or str(Path.home() / ".bago"))
+    user_bago = Path(args.user_bago or str(workspace_root()))
     source = Path(args.source) if args.source else (user_bago / "knowledge" / "source")
     if not source.exists():
         print(f"source missing: {source}")

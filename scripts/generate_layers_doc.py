@@ -12,7 +12,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).parent.parent / ".bago" / "tools"
+TOOLS_DIR = Path(__file__).parent.parent / ".gabo" / "tools"
 REPO_ROOT = Path(__file__).parent.parent
 OUT_PATH = REPO_ROOT / "docs" / "LAYERS.md"
 

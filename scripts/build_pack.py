@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 _EXCLUDE_DIRS = {
     ".git", "__pycache__", ".pytest_cache", "node_modules",
-    "dist", ".bago/state", ".bago/logs", ".bago/cache",
+    "dist", ".gabo/state", ".gabo/logs", ".gabo/cache",
 }
 _EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".log", ".tmp"}
 _EXCLUDE_FILES = {"NTUSER.DAT"}

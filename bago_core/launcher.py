@@ -17,6 +17,8 @@ import os
 import sys
 from pathlib import Path
 
+from bago_core.workspace_paths import workspace_root
+
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 for _stream in (sys.stdout, sys.stderr):
@@ -25,18 +27,18 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-# Insert .bago paths
+# Insert framework paths
 BAGO_ROOT = Path(__file__).resolve().parents[1]
 _repo_root = str(BAGO_ROOT)
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
-# Prefer .bago/core/version.py when running from source; bago_core/version.py acts
+# Prefer .gabo/core/version.py when running from source; bago_core/version.py acts
 # as a fallback when installed as a wheel (see bago_core/version.py).
-_bago_core_dir = str(BAGO_ROOT / ".bago" / "core")
+_bago_core_dir = str(BAGO_ROOT / ".gabo" / "core")
 if Path(_bago_core_dir).exists():
     sys.path.insert(0, _bago_core_dir)
-sys.path.insert(0, str(BAGO_ROOT / ".bago" / "chat"))
-sys.path.insert(0, str(BAGO_ROOT / ".bago" / "providers"))
+sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "chat"))
+sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "providers"))
 
 _CREATED_VERSION = "4.0.0"
 
@@ -227,8 +229,8 @@ def cmd_profiles(args: argparse.Namespace) -> int:
     print("BAGO profiles")
     print("----------------------------------------")
     print("stable : C:\\Program Files\\BAGO")
-    print("des    : C:\\Users\\AMTEC_Terminal_1º\\.bago\\dev")
-    print("ign    : C:\\Users\\AMTEC_Terminal_1º\\.bago\\launch")
+    print("des    : C:\\Users\\AMTEC_Terminal_1º\\.gabo\\dev")
+    print("ign    : C:\\Users\\AMTEC_Terminal_1º\\.gabo\\launch")
     print("")
     print("Flujo:")
     print("  bago install --profile des")
@@ -290,7 +292,7 @@ def cmd_node(args: argparse.Namespace) -> int:
     return _nc.main(argv)
 
 def _read_release_label(root: Path) -> str:
-    for candidate in (root / "release_version.txt", root / ".bago" / "release_version.txt"):
+    for candidate in (root / "release_version.txt", root / ".gabo" / "release_version.txt"):
         if candidate.exists():
             try:
                 value = candidate.read_text(encoding="utf-8").strip()
@@ -312,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] in {"des", "ign"}:
         profile = argv[0]
-        profile_root = Path.home() / ".bago" / ("dev" if profile == "des" else "launch")
+        profile_root = workspace_root() / ("dev" if profile == "des" else "launch")
         cli_path = profile_root / "bago_core" / "cli.py"
         runner = cli_path if cli_path.exists() else profile_root / "bago_core" / "launcher.py"
         if not runner.exists():
@@ -322,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
         completed = subprocess.run([sys.executable, str(runner), *argv[1:]], cwd=str(profile_root))
         return completed.returncode
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".bago" / "core"))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".gabo" / "core"))
     from config_manager import ConfigManager
 
     install_root = Path(__file__).resolve().parents[1]

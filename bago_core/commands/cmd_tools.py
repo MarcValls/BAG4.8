@@ -9,11 +9,11 @@ BAGO_ROOT = Path(__file__).resolve().parents[2]
 
 for _path in (
     BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".bago" / "core",
-    BAGO_ROOT / ".bago" / "chat",
-    BAGO_ROOT / ".bago" / "providers",
-    BAGO_ROOT / ".bago" / "api",
-    BAGO_ROOT / ".bago" / "tools",
+    BAGO_ROOT / ".gabo" / "core",
+    BAGO_ROOT / ".gabo" / "chat",
+    BAGO_ROOT / ".gabo" / "providers",
+    BAGO_ROOT / ".gabo" / "api",
+    BAGO_ROOT / ".gabo" / "tools",
 ):
     _path_s = str(_path)
     if _path_s not in sys.path:
@@ -22,7 +22,7 @@ for _path in (
 def _load_tool_module(module_name: str, file_name: str):
     import importlib.util
 
-    tool_path = BAGO_ROOT / ".bago" / "tools" / file_name
+    tool_path = BAGO_ROOT / ".gabo" / "tools" / file_name
     spec = importlib.util.spec_from_file_location(module_name, tool_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"No se pudo cargar la herramienta: {tool_path}")
@@ -182,7 +182,7 @@ def cmd_route(args: argparse.Namespace) -> int:
 
 def cmd_scan(args: argparse.Namespace) -> int:
     """Herramientas de analisis portables. Funcionan en cualquier proyecto."""
-    tools_dir = BAGO_ROOT / ".bago" / "tools"
+    tools_dir = BAGO_ROOT / ".gabo" / "tools"
     if str(tools_dir) not in sys.path:
         sys.path.insert(0, str(tools_dir))
 
@@ -373,11 +373,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
         print("    --json        Output estructurado en JSON")
         print()
         print("  Estas herramientas tambien funcionan standalone:")
-        print("    python .bago/tools/secret_scan.py --root /mi/proyecto")
+        print("    python .gabo/tools/secret_scan.py --root /mi/proyecto")
         return 0
 
 def cmd_canary(args):
-    tools_dir = BAGO_ROOT / ".bago" / "tools"
+    tools_dir = BAGO_ROOT / ".gabo" / "tools"
     if str(tools_dir) not in sys.path:
         sys.path.insert(0, str(tools_dir))
     import bago_canary
@@ -393,7 +393,7 @@ def cmd_canary(args):
     return bago_canary.main(argv)
 
 def cmd_backup(args):
-    tools_dir = BAGO_ROOT / ".bago" / "tools"
+    tools_dir = BAGO_ROOT / ".gabo" / "tools"
     if str(tools_dir) not in sys.path:
         sys.path.insert(0, str(tools_dir))
     import bago_backup_vault
@@ -411,7 +411,7 @@ def cmd_backup(args):
     return bago_backup_vault.main(argv)
 
 def cmd_inventory(args):
-    tools_dir = BAGO_ROOT / ".bago" / "tools"
+    tools_dir = BAGO_ROOT / ".gabo" / "tools"
     if str(tools_dir) not in sys.path:
         sys.path.insert(0, str(tools_dir))
     import bago_inventory

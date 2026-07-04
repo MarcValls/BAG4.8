@@ -13,11 +13,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bago_core.workspace_paths import workspace_root
+
 BAGO_ROOT = Path(__file__).resolve().parents[2]
 PROFILE_ROOTS = {
     "stable": Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "BAGO",
-    "des": Path.home() / ".bago" / "dev",
-    "ign": Path.home() / ".bago" / "launch",
+    "des": workspace_root() / "dev",
+    "ign": workspace_root() / "launch",
 }
 PROFILE_DATA_ROOT = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO"
 
@@ -40,7 +42,8 @@ def _normalize_profile(profile: str) -> str:
 
 
 def _profile_install_dir(profile: str) -> Path:
-    return PROFILE_ROOTS[_normalize_profile(profile)]
+    root = PROFILE_ROOTS[_normalize_profile(profile)]
+    return root
 
 
 def _profile_backup_root(profile: str) -> Path:
@@ -52,11 +55,11 @@ def _profile_user_state_dir(profile: str) -> Path:
 
 for _path in (
     BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".bago" / "core",
-    BAGO_ROOT / ".bago" / "chat",
-    BAGO_ROOT / ".bago" / "providers",
-    BAGO_ROOT / ".bago" / "api",
-    BAGO_ROOT / ".bago" / "tools",
+    BAGO_ROOT / ".gabo" / "core",
+    BAGO_ROOT / ".gabo" / "chat",
+    BAGO_ROOT / ".gabo" / "providers",
+    BAGO_ROOT / ".gabo" / "api",
+    BAGO_ROOT / ".gabo" / "tools",
 ):
     _path_s = str(_path)
     if _path_s not in sys.path:

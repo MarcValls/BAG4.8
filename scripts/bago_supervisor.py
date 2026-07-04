@@ -17,9 +17,9 @@ Uso:
     bago sup attach          Muestra el log en vivo (tail -f)
 
 Archivos:
-    ~/.bago/state/supervisor.json     Estado vivo (pid, started_at, last_event)
-    ~/.bago/state/supervisor.log      Eventos append-only (capped 1 MB)
-    ~/.bago/state/supervisor.lock     lockfile (flock)
+    ~/.gabo/state/supervisor.json     Estado vivo (pid, started_at, last_event)
+    ~/.gabo/state/supervisor.log      Eventos append-only (capped 1 MB)
+    ~/.gabo/state/supervisor.lock     lockfile (flock)
 
 Políticas de callejón sin salida (orden de severidad):
     1) Cualquier subproceso BAGO lleva >5 min sin heartbeat   -> SIGTERM

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cmd_provider.py -- Inspect and patch providers in .bago/config.json.
+cmd_provider.py -- Inspect and patch providers in .gabo/config.json.
 
 Uso:
     python bago_core\\cli.py provider list

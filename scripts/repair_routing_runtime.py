@@ -2,7 +2,7 @@
 """Repair routing_runtime.json to match the canonical balanced contract."""
 import json
 preset_path = r'C:\Users\AMTEC_Terminal_1º\BAGO\docs\contracts\bago_v4_routing_presets.json'
-runtime_path = r'C:\Users\AMTEC_Terminal_1º\.bago\routing_runtime.json'
+runtime_path = r'C:\Users\AMTEC_Terminal_1º\.gabo\routing_runtime.json'
 with open(preset_path,'r',encoding='utf-8') as f: p = json.load(f)
 with open(runtime_path,'r',encoding='utf-8') as f: r = json.load(f)
 expected = p['presets']['balanced']['contract']['text']

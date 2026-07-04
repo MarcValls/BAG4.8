@@ -215,7 +215,7 @@ function createRuntimeService(ctx) {
         reject(new Error('Ruta de workspace vacía'));
         return;
       }
-      const script = path.join(ROOT_DIR, '.bago', 'tools', 'project_memory.py');
+      const script = path.join(ROOT_DIR, '.gabo', 'tools', 'project_memory.py');
       if (!fs.existsSync(script)) {
         reject(new Error(`project_memory.py no encontrado en ${ROOT_DIR}`));
         return;
@@ -407,7 +407,7 @@ function createRuntimeService(ctx) {
     const managedPaths = [];
     try { managedPaths.push(resolveBundledRuntimeRoot()); } catch {}
     try { managedPaths.push(resolveInstalledRuntimeRoot()); } catch {}
-    try { managedPaths.push(path.join(os.homedir(), '.bago')); } catch {}
+    try { managedPaths.push(path.join(os.homedir(), '.gabo')); } catch {}
     const allowList = managedPaths.filter(Boolean).map(p => p.replace(/\\/g, '\\\\').replace(/'/g, "''"));
     const scriptMarkers = ['launcher.py', 'bago_webchat.py', 'bago_supervisor.py', 'bridge.py'];
     const allowListJson = JSON.stringify(allowList);
