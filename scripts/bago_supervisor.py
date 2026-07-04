@@ -53,14 +53,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from bago_core.versioning import read_release_version
+from bago_core.user_state_paths import ensure_user_roots, state_root, supervisor_state_file, supervisor_log_file, supervisor_lock_file, supervisor_stop_file, legacy_user_root
 
 # ── Constantes ───────────────────────────────────────────────────────────────
-STATE_DIR = Path(os.path.expanduser("~/.bago/state"))
-STATE_DIR.mkdir(parents=True, exist_ok=True)
-STATE_FILE   = STATE_DIR / "supervisor.json"
-LOG_FILE     = STATE_DIR / "supervisor.log"
-LOCK_FILE    = STATE_DIR / "supervisor.lock"
-STOP_FILE    = STATE_DIR / "supervisor.stop"  # sentinel: presente = salir limpio
+ensure_user_roots()
+STATE_DIR = state_root()
+STATE_FILE   = supervisor_state_file()
+LOG_FILE     = supervisor_log_file()
+LOCK_FILE    = supervisor_lock_file()
+STOP_FILE    = supervisor_stop_file()  # sentinel: presente = salir limpio
 LOG_MAX_BYTES = 1_000_000  # 1 MB
 SUPERVISOR_VERSION = read_release_version(ROOT)
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env pythonw
 """Wrapper silencioso para arrancar el supervisor sin consola (sin parpadeo).
 Se ejecuta con pythonw.exe en lugar de python.exe: no abre ventana CMD.
-El supervisor ya tiene su propio log en ~/.bago/state/supervisor.log, así
-que no perdemos output.
+El supervisor escribe su log en la raíz mutable de usuario de BAGO.
 """
 import sys
 import os
@@ -20,7 +19,7 @@ try:
     import bago_supervisor
 except Exception as e:
     # Si falla, escribimos a un archivo de error para diagnóstico (sin ventana)
-    err = os.path.join(os.environ.get("USERPROFILE", "."), ".bago", "state", "supervisor_silent.err")
+    err = os.path.join(os.environ.get("LOCALAPPDATA") or os.environ.get("USERPROFILE", "."), "BAGO", "state", "supervisor_silent.err")
     try:
         os.makedirs(os.path.dirname(err), exist_ok=True)
         with open(err, "a", encoding="utf-8") as f:

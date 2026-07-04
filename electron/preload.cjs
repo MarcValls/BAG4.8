@@ -4,6 +4,10 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const ROOT_DIR = path.join(__dirname, '..');
+const USER_ROOT = process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, 'BAGO')
+  : path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
+const LEGACY_USER_ROOT = path.join(os.homedir(), '.bago');
 
 function asPath(p) {
   return String(p || '').trim();
@@ -37,6 +41,13 @@ function readReleaseVersion() {
     if (text) return text.replace(/^v/i, '').trim();
   }
   return readVersionsCurrent(ROOT_DIR);
+}
+
+function firstExistingPath(paths) {
+  for (const candidate of paths) {
+    if (candidate && exists(candidate)) return candidate;
+  }
+  return '';
 }
 
 function pidAlive(pid) {
@@ -73,7 +84,7 @@ const ROLE_LABELS = {
 };
 
 function selectionPath() {
-  return path.join(os.homedir(), '.bago', 'install_selection.json');
+  return path.join(USER_ROOT, 'install_selection.json');
 }
 
 function emptySelection() {
@@ -81,7 +92,10 @@ function emptySelection() {
 }
 
 function readInstallSelection() {
-  const file = selectionPath();
+  const file = firstExistingPath([
+    selectionPath(),
+    path.join(LEGACY_USER_ROOT, 'install_selection.json')
+  ]) || selectionPath();
   if (!exists(file)) return { ...emptySelection(), selection_file: file };
   try {
     const data = JSON.parse(readText(file) || '{}');
@@ -137,7 +151,7 @@ function writeInstallSelection(role, installPath) {
 }
 
 function chainRegistryPath() {
-  return path.join(os.homedir(), '.bago', 'manager', 'chains.json');
+  return path.join(USER_ROOT, 'manager', 'chains.json');
 }
 
 function emptyChainRegistry() {
@@ -196,7 +210,11 @@ function readVersion(root) {
 
 function classifyInstall(root, mode, description, selection = readInstallSelection()) {
   const has = rel => exists(path.join(root, rel));
-  const statePath = [path.join(root, 'state', 'supervisor.json'), path.join(os.homedir(), '.bago', 'state', 'supervisor.json')].find(exists);
+  const statePath = firstExistingPath([
+    path.join(root, 'state', 'supervisor.json'),
+    path.join(USER_ROOT, 'state', 'supervisor.json'),
+    path.join(LEGACY_USER_ROOT, 'state', 'supervisor.json')
+  ]);
   let supervisorState = null;
   let supervisorAlive = false;
   if (statePath) {
@@ -262,10 +280,13 @@ function scanInstallations(extraPaths = []) {
   const known = [
     ...managed,
     [path.join(pf, 'BAGO'), 'system', 'Instalación de sistema'],
-    [path.join(home, '.bago'), 'user', 'User root (default work)'],
-    [path.join(home, '.bago', 'active'), 'work', 'Active / work'],
-    [path.join(home, '.bago', 'launch'), 'ign', 'Ignition / launch'],
-    [path.join(home, '.bago', 'dev'), 'dev', 'Dev tree (user)'],
+    [USER_ROOT, 'user', 'User root (default work)'],
+    [path.join(USER_ROOT, 'active'), 'work', 'Active / work'],
+    [path.join(USER_ROOT, 'launch'), 'ign', 'Ignition / launch'],
+    [path.join(USER_ROOT, 'dev'), 'dev', 'Dev tree (user)'],
+    [path.join(LEGACY_USER_ROOT, 'active'), 'work', 'Legacy active / work'],
+    [path.join(LEGACY_USER_ROOT, 'launch'), 'ign', 'Legacy ignition / launch'],
+    [path.join(LEGACY_USER_ROOT, 'dev'), 'dev', 'Legacy dev tree'],
     [path.join(home, 'BAGO'), 'source', 'Source tree']
   ];
   for (const p of extraPaths) {
@@ -396,7 +417,8 @@ function buildRoleCommand(role, installDir) {
     `$role = ${psSingle(cleanRole)}`,
     `$root = ${psSingle(root)}`,
     `$label = ${psSingle(label)}`,
-    "$file = Join-Path $env:USERPROFILE '.bago\\install_selection.json'",
+    "$userRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\\Local\\BAGO' }",
+    "$file = Join-Path $userRoot 'install_selection.json'",
     '$roles = @{}',
     "if (Test-Path $file) { try { $data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json; if ($data.roles) { foreach ($p in $data.roles.PSObject.Properties) { $roles[$p.Name] = $p.Value } } } catch {} }",
     "$now = (Get-Date).ToUniversalTime().ToString('o')",

@@ -16,6 +16,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from bago_core.user_state_paths import legacy_user_root, user_root
+
 
 def _sha256(p: Path) -> str:
     h = hashlib.sha256()
@@ -26,7 +28,7 @@ def _sha256(p: Path) -> str:
 
 
 def _user_bago_root() -> Path:
-    return Path.home() / ".bago"
+    return user_root()
 
 
 def _copytree(src: Path, dst: Path) -> None:
@@ -47,7 +49,7 @@ def _checksums(root: Path, out: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--user-bago", default=None, help="Path to .bago (default: ~/.bago)")
+    parser.add_argument("--user-bago", default=None, help="Path to BAGO user root (default: %LOCALAPPDATA%\\BAGO)")
     parser.add_argument("--version", required=True, help="Target version (e.g. X.Y.Z)")
     parser.add_argument("--note", default="", help="Release note")
     args = parser.parse_args(argv)

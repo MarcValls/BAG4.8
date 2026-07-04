@@ -53,6 +53,7 @@ env/
 *.tmp
 *.bak
 *.py.new
+.staging/
 bago_core/parsers_legacy_*.py
 tools/_diff_*.py
 dist/
@@ -88,4 +89,3 @@ router_body.json
 serve_help.txt
 serve_test.txt
 status_body.json
-

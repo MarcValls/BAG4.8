@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bago_core.user_state_paths import state_root, legacy_user_root
+
 
 def now_iso() -> str:
     """UTC ISO8601 timestamp used in manifest + objective files (R5 SSoT)."""
@@ -115,11 +117,11 @@ def copy_session_artifacts(
 ) -> list[str]:
     """Copy the persistent session artifacts into the bundle (R1, R8)."""
     override = os.environ.get("BAGO_STATE_ROOT", "").strip()
-    state_root = Path(override).expanduser().resolve() if override else None
+    user_state_root = Path(override).expanduser().resolve() if override else None
     candidates = [
-        state_root if state_root is not None else base_path / ".bago" / "state",
+        user_state_root if user_state_root is not None else state_root(),
         base_path / ".bago" / "state",
-        Path.home() / ".bago" / "state",
+        legacy_user_root() / "state",
     ]
     copied: list[str] = []
 

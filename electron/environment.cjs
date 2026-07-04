@@ -90,6 +90,19 @@ function runVisiblePowerShell(command, options = {}) {
   return { pid: child.pid };
 }
 
+function resolveUserRoot() {
+  const localAppData = process.env.LOCALAPPDATA || '';
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  if (localAppData) return path.join(localAppData, 'BAGO');
+  if (home) return path.join(home, 'AppData', 'Local', 'BAGO');
+  return '';
+}
+
+function resolveLegacyUserRoot() {
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  return home ? path.join(home, '.bago') : '';
+}
+
 function hasBagoRuntime(root) {
   return !!root
     && fs.existsSync(path.join(root, 'bago_core', 'launcher.py'))
@@ -115,7 +128,7 @@ function resolveBundledRuntimeRoot() {
 function resolveInstalledRuntimeRoot() {
   const home = process.env.USERPROFILE || process.env.HOME || '';
   const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
-  const localAppData = process.env.LOCALAPPDATA || (home ? path.join(home, 'AppData', 'Local') : '');
+  const localAppData = resolveUserRoot();
   const envOverride = process.env.BAGO_ROOT || '';
 
   const managedInstalls = [];
@@ -131,9 +144,11 @@ function resolveInstalledRuntimeRoot() {
     envOverride,
     ...managedInstalls,
     path.join(programFiles, 'BAGO'),
-    localAppData ? path.join(localAppData, 'BAGO') : '',
-    home ? path.join(home, '.bago', 'active') : '',
-    home ? path.join(home, '.bago', 'launch') : ''
+    localAppData,
+    home ? path.join(home, 'AppData', 'Local', 'BAGO', 'active') : '',
+    home ? path.join(home, 'AppData', 'Local', 'BAGO', 'launch') : '',
+    resolveLegacyUserRoot() ? path.join(resolveLegacyUserRoot(), 'active') : '',
+    resolveLegacyUserRoot() ? path.join(resolveLegacyUserRoot(), 'launch') : ''
   ].filter(Boolean);
 
   const bundled = resolveBundledRuntimeRoot();
@@ -149,12 +164,14 @@ function resolveInstalledRuntimeRoot() {
 function resolveDevelopmentRuntimeRoot() {
   const home = process.env.USERPROFILE || process.env.HOME || '';
   const installed = resolveInstalledRuntimeRoot();
-  const selectionFile = home ? path.join(home, '.bago', 'install_selection.json') : '';
+  const selectionFile = resolveUserRoot() ? path.join(resolveUserRoot(), 'install_selection.json') : '';
+  const legacySelectionFile = resolveLegacyUserRoot() ? path.join(resolveLegacyUserRoot(), 'install_selection.json') : '';
   const candidates = [];
 
-  if (selectionFile && fs.existsSync(selectionFile)) {
+  for (const file of [selectionFile, legacySelectionFile]) {
+    if (!file || !fs.existsSync(file)) continue;
     try {
-      const payload = JSON.parse(readText(selectionFile) || '{}');
+      const payload = JSON.parse(readText(file) || '{}');
       const selectedDev = payload && payload.roles && payload.roles.dev && payload.roles.dev.path;
       if (selectedDev) candidates.push(String(selectedDev));
     } catch {}
@@ -163,7 +180,9 @@ function resolveDevelopmentRuntimeRoot() {
   if (home) {
     candidates.push(path.join(home, 'bago_fw'));
     candidates.push(path.join(home, 'BAGO'));
-    candidates.push(path.join(home, '.bago', 'dev'));
+    candidates.push(path.join(home, 'AppData', 'Local', 'BAGO', 'dev'));
+    const legacy = resolveLegacyUserRoot();
+    if (legacy) candidates.push(path.join(legacy, 'dev'));
   }
 
   for (const candidate of candidates) {

@@ -16,6 +16,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from bago_core.user_state_paths import install_selection_file, legacy_user_root
+
 ROLES = ("active", "dev", "launch", "writer", "illustrator")
 ROLE_LABELS = {
     "active": "Copia activa",
@@ -27,7 +29,7 @@ ROLE_LABELS = {
 
 
 def selection_file() -> Path:
-    return Path.home() / ".bago" / "install_selection.json"
+    return install_selection_file()
 
 
 def _now() -> str:
@@ -44,6 +46,10 @@ def _empty() -> dict[str, Any]:
 
 def load_selection(path: str | Path | None = None) -> dict[str, Any]:
     target = Path(path) if path else selection_file()
+    if path is None and not target.is_file():
+        legacy = legacy_user_root() / "install_selection.json"
+        if legacy.is_file():
+            target = legacy
     if not target.is_file():
         return _empty()
     try:

@@ -15,8 +15,10 @@ import json
 import sys
 from pathlib import Path
 
+from bago_core.user_state_paths import state_root
+
 def _user_bago_root() -> Path:
-    return Path.home() / ".bago" / "state"
+    return state_root()
 
 def cmd_provider_list(args: argparse.Namespace) -> int:
     from config_manager import ConfigManager

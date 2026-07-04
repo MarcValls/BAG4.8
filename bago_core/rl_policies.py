@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+from bago_core.user_state_paths import state_root
 from typing import Any
 
 try:
@@ -109,13 +111,13 @@ class BCPolicy:
         return policy
 
 def policy_dir(base_path: str | Path) -> Path:
-    return Path(base_path) / ".bago" / "state" / "rl_policies"
+    return state_root() / "rl_policies"
 
 def bc_policy_path(base_path: str | Path) -> Path:
     return policy_dir(base_path) / "bc_policy.json"
 
 def _transition_log(base_path: str | Path) -> Path:
-    return Path(base_path) / ".bago" / "state" / "rl_transitions.jsonl"
+    return state_root() / "rl_transitions.jsonl"
 
 def load_transition_samples(base_path: str | Path, n_features: int) -> list[tuple[list[float], int, float]]:
     path = _transition_log(base_path)

@@ -25,6 +25,7 @@ from bago_core.claim_model import (
     STATUS_SUPERSEDED,
     STATUS_VERIFIED,
 )
+from bago_core.user_state_paths import state_root
 
 
 class ClaimLedger:
@@ -37,7 +38,7 @@ class ClaimLedger:
 
     def __init__(self, base_path: str | Path = ".") -> None:
         self.base_path = Path(base_path)
-        self.evidence_dir = self.base_path / ".bago" / "state" / "evidence"
+        self.evidence_dir = state_root() / "evidence"
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
         self.claims_file = self.evidence_dir / "claims.jsonl"
 

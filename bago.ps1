@@ -1,12 +1,13 @@
 #!/usr/bin/env pwsh
 # BAGO global launcher — despacha por sub-comando:
-#   bago              → instalación de trabajo (~/.bago)
+#   bago              → instalación de trabajo (%LOCALAPPDATA%\BAGO)
 #   bago des          → plataforma de desarrollo (BAGO source)
-#   bago ign          → plataforma de lanzamiento (BAGO install + ~/.bago/launch)
+#   bago ign          → plataforma de lanzamiento (BAGO install + %LOCALAPPDATA%\BAGO\launch)
 #   bago sup <verb>   → supervisor always-on (start|stop|status|attach)
 # Sin sub-comando = "bago" (instalación de trabajo) para retro-compatibilidad.
 $ErrorActionPreference = 'Stop'
-$userBago  = Join-Path $env:USERPROFILE '.bago'
+$userBago  = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\Local\BAGO' }
+$legacyBago = Join-Path $env:USERPROFILE '.bago'
 $srcBago   = "$env:USERPROFILE\BAGO"
 $instBago  = 'C:\Program Files\BAGO'
 $activeBago = $instBago
@@ -22,8 +23,11 @@ function Get-LauncherVersion {
 }
 
 function Get-SelectedRolePath([string]$role, [string]$fallback) {
-    $selectionFile = Join-Path $userBago 'install_selection.json'
-    if (-not (Test-Path $selectionFile)) { return $fallback }
+    $selectionFile = @(
+        (Join-Path $userBago 'install_selection.json'),
+        (Join-Path $legacyBago 'install_selection.json')
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $selectionFile) { return $fallback }
     try {
         $selection = Get-Content -LiteralPath $selectionFile -Raw | ConvertFrom-Json
         $entry = $selection.roles.$role

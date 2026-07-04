@@ -159,7 +159,8 @@ function roleCommand(role,target){
     '$role = '+psSingle(role),
     '$root = '+psSingle(target),
     '$label = '+psSingle(label),
-    '$file = Join-Path $env:USERPROFILE '+psSingle('.bago\\install_selection.json'),
+    "$userRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\\Local\\BAGO' }",
+    '$file = Join-Path $userRoot '+psSingle('install_selection.json'),
     '$roles = @{}',
     'if (Test-Path $file) { try { $data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json; if ($data.roles) { foreach ($p in $data.roles.PSObject.Properties) { $roles[$p.Name] = $p.Value } } } catch {} }',
     "$now = (Get-Date).ToUniversalTime().ToString('o')",
@@ -239,7 +240,7 @@ function roleBadgeLabel(role){
 function renderRolePanel(items){
   if(!rolePanel||!roleCards)return;
   const selected=rolePathsFromSelection();
-  const file=installSelection.selection_file||'~\\.bago\\install_selection.json';
+  const file=installSelection.selection_file||'%LOCALAPPDATA%\\BAGO\\install_selection.json';
   roleFileLabel.textContent=file;
   rolePanel.style.display='block';
   roleCards.innerHTML=ROLE_ORDER.map(role=>{

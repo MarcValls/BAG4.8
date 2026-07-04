@@ -11,6 +11,7 @@
     "premanager:pack": "npm run manager:build-ui",
     "premanager:dist": "npm run manager:build-ui",
     "manager:prepare-release-tree": "python scripts/package_v4.py --output-dir release/v4 --json",
+    "manager:dist-staging": "python scripts/build_installer_staging.py",
     "manager:dev": "electron .",
     "manager:pack": "npm run manager:build-ui && npm run manager:prepare-release-tree && electron-builder --dir",
     "manager:dist": "npm run manager:build-ui && npm run manager:prepare-release-tree && electron-builder --win nsis",
@@ -99,9 +100,9 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "perMachine": false,
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "perMachine": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "BAGO Installation Manager"

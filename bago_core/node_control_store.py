@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from bago_core.node_control_ssot import DEFAULT_PIECE_CATALOG, PIECE_STORE_TYPES
+from bago_core.user_state_paths import state_root
 
 @dataclass(frozen=True)
 class RegistryPaths:
@@ -50,7 +51,7 @@ def jsonl_append(path: Path, payload: dict[str, Any]) -> None:
         fh.write("\n")
 
 def registry_paths(base_path: str | Path) -> RegistryPaths:
-    root = Path(base_path) / ".bago" / "state" / "node_control"
+    root = state_root() / "node_control"
     return RegistryPaths(
         root=root,
         installations=root / "installations.json",

@@ -25,6 +25,8 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+from bago_core.user_state_paths import legacy_user_root, state_root
+
 
 def _http_json(url: str, body: dict | None = None, timeout: float = 5.0) -> tuple[bool, dict | str, float]:
     """Returns (ok, payload_or_error, duration_s)."""
@@ -66,7 +68,9 @@ def check_ollama() -> dict:
 
 
 def check_knowledge() -> dict:
-    db = Path.home() / ".bago" / "knowledge" / "knowledge.db"
+    db = state_root() / "knowledge" / "knowledge.db"
+    if not db.exists():
+        db = legacy_user_root() / "knowledge" / "knowledge.db"
     if not db.exists():
         return {"provider": "knowledge", "ok": False, "error": f"db not found: {db}"}
     try:
@@ -111,7 +115,9 @@ def _pid_alive(pid: int) -> bool:
 def check_supervisor() -> dict:
     """Lee supervisor.json + verifica liveness del pid. No depende de un
     campo 'alive' pre-escrito (el supervisor lo recalcula en cada tick)."""
-    state = Path.home() / ".bago" / "state" / "supervisor.json"
+    state = state_root() / "supervisor.json"
+    if not state.exists():
+        state = legacy_user_root() / "state" / "supervisor.json"
     if not state.exists():
         return {"provider": "supervisor", "ok": False, "error": "no instalado"}
     try:
@@ -149,7 +155,9 @@ def check_supervisor() -> dict:
 
 
 def check_release() -> dict:
-    launch = Path.home() / ".bago" / "launch"
+    launch = state_root() / "launch"
+    if not launch.exists():
+        launch = legacy_user_root() / "launch"
     sig = launch / "release.sig"
     meta = launch / "release.json"
     if not sig.exists() or not meta.exists():

@@ -19,6 +19,7 @@ from pathlib import Path
 from bago_core.install_roles import load_selection, role_paths
 from bago_core.cli_installs_discovery import _scan
 from bago_core.cli_installs_summary import summary
+from bago_core.user_state_paths import install_selection_file
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "summary": summary(items),
         "selection": {
-            "file": str(Path.home() / ".bago" / "install_selection.json"),
+            "file": str(install_selection_file()),
             "roles": role_paths(load_selection()),
         },
         "installations": items,

@@ -21,15 +21,19 @@ from bago_core.cli_installs_facts import (
     short_sig,
     supervisor_state,
 )
+from bago_core.user_state_paths import user_root, legacy_user_root
 
 
 KNOWN_LOCATIONS: list[tuple[str, str, str]] = [
     # (path_template, mode, description)
     ("{pf}\\BAGO",                                            "system",  "Instalacion de sistema"),
-    ("{home}\\.bago",                                          "user",    "User root (default work)"),
-    ("{home}\\.bago\\active",                                  "work",    "Active / work"),
-    ("{home}\\.bago\\launch",                                  "ign",     "Ignition / launch"),
-    ("{home}\\.bago\\dev",                                     "dev",     "Dev tree (user)"),
+    ("{user}\\active",                                         "work",    "Active / work"),
+    ("{user}\\launch",                                         "ign",     "Ignition / launch"),
+    ("{user}\\dev",                                            "dev",     "Dev tree (user)"),
+    ("{legacy}\\active",                                       "work",    "Legacy active / work"),
+    ("{legacy}\\launch",                                       "ign",     "Legacy ignition / launch"),
+    ("{legacy}\\dev",                                          "dev",     "Legacy dev tree"),
+    ("{legacy}",                                               "user",    "Legacy user root"),
     ("{home}\\BAGO",                                           "source",  "Source tree"),
 ]
 
@@ -77,6 +81,8 @@ def _scan() -> list[dict[str, Any]]:
     """Scan the known locations and the user-selected roles."""
     pf  = os.environ.get("ProgramFiles", r"C:\Program Files")
     home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or str(Path.home())
+    user = str(user_root())
+    legacy = str(legacy_user_root())
     selection = load_selection()
     selected_paths = role_paths(selection)
     results: list[dict[str, Any]] = []
@@ -97,7 +103,7 @@ def _scan() -> list[dict[str, Any]]:
         results.append(info)
 
     for tmpl, mode, desc in KNOWN_LOCATIONS:
-        p = _expand(tmpl.format(pf=pf, home=home))
+        p = _expand(tmpl.format(pf=pf, home=home, user=user, legacy=legacy))
         add_path(p, mode, desc)
     role_to_mode = {
         "active": "work",

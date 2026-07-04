@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 BAGO_ROOT = Path(__file__).resolve().parents[2]
+from bago_core.user_state_paths import install_selection_file, user_root, legacy_user_root
 
 
 def _check(name: str, checks: list, ok: bool, detail: str = "") -> dict:
@@ -92,9 +93,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append(_check("version_coherent", checks, ver_ok, ver_detail))
 
     # ── 2. install_selection.json ────────────────────────────────────────────
-    sel_path = Path.home() / ".bago" / "install_selection.json"
+    sel_path = install_selection_file()
+    legacy_sel_path = legacy_user_root() / "install_selection.json"
     sel_ok = sel_path.exists()
     sel_detail = ""
+    if not sel_ok and legacy_sel_path.exists():
+        sel_path = legacy_sel_path
+        sel_ok = True
     if sel_ok:
         try:
             sel = json.loads(sel_path.read_text(encoding="utf-8"))
@@ -121,7 +126,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             sel_detail = f"error leyendo JSON: {exc}"
             fails += 1
     else:
-        sel_detail = "~/.bago/install_selection.json no existe"
+        sel_detail = f"{user_root()}\\install_selection.json no existe"
         fails += 1
     checks.append(_check("install_selection", checks, sel_ok, sel_detail))
 

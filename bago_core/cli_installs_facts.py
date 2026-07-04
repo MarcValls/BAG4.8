@@ -17,6 +17,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from bago_core.user_state_paths import supervisor_state_file, legacy_user_root
+
 
 def pid_alive(pid: int) -> bool:
     """Return True if a Windows process with the given pid is still running.
@@ -81,9 +83,11 @@ def supervisor_state(root: Path) -> tuple[dict[str, Any] | None, bool]:
     falls back to `~/.bago/state/supervisor.json` (global state). Returns
     (None, False) if neither exists or the file is malformed.
     """
-    state = root / "state" / "supervisor.json"
+    state = supervisor_state_file()
     if not state.is_file():
-        state = Path.home() / ".bago" / "state" / "supervisor.json"
+        state = root / "state" / "supervisor.json"
+    if not state.is_file():
+        state = legacy_user_root() / "state" / "supervisor.json"
     if not state.is_file():
         return None, False
     try:

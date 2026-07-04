@@ -19,13 +19,15 @@ import urllib.request
 import datetime as _dt
 from pathlib import Path
 
+from bago_core.user_state_paths import legacy_user_root, state_root
+
 
 def _user_bago_root() -> Path:
-    return Path.home() / ".bago"
+    return state_root().parent
 
 
 def _user_bago_kb() -> Path:
-    return Path.home() / ".bago" / "knowledge"
+    return state_root() / "knowledge"
 
 
 def _ensure_db(path: Path, schema: str) -> sqlite3.Connection:
