@@ -1,6 +1,7 @@
 function createRuntimeService(ctx) {
   const {
     app,
+    dialog,
     shell,
     execFile,
     spawn,
@@ -191,6 +192,54 @@ function createRuntimeService(ctx) {
     });
     await webChatWindow.loadURL(state.url);
     return { ...state, focused: false };
+  }
+
+  async function chooseWorkspaceRoot() {
+    if (!dialog || typeof dialog.showOpenDialog !== 'function') {
+      throw new Error('Dialog de sistema no disponible');
+    }
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory', 'promptToCreate']
+    });
+    if (result.canceled || !Array.isArray(result.filePaths) || !result.filePaths.length) {
+      return { ok: false, canceled: true, message: 'Selección cancelada' };
+    }
+    const root = String(result.filePaths[0] || '').trim();
+    return { ok: true, canceled: false, path: root, filePath: root, filePaths: [root] };
+  }
+
+  function linkProjectRoot(root) {
+    return new Promise((resolve, reject) => {
+      const cleanRoot = String(root || '').trim();
+      if (!cleanRoot) {
+        reject(new Error('Ruta de workspace vacía'));
+        return;
+      }
+      const script = path.join(ROOT_DIR, '.bago', 'tools', 'project_memory.py');
+      if (!fs.existsSync(script)) {
+        reject(new Error(`project_memory.py no encontrado en ${ROOT_DIR}`));
+        return;
+      }
+      execFile(
+        'python',
+        [script, '--root', cleanRoot, 'link'],
+        { cwd: ROOT_DIR, windowsHide: true, timeout: 15000, maxBuffer: 4 * 1024 * 1024 },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(`${error.message}${stderr ? ` · ${stderr.trim()}` : ''}`));
+            return;
+          }
+          resolve({
+            ok: true,
+            canceled: false,
+            path: cleanRoot,
+            root: cleanRoot,
+            message: `workspace vinculado: ${cleanRoot}`,
+            stdout: String(stdout || '').trim()
+          });
+        }
+      );
+    });
   }
 
   function openCliChat(options = {}) {
@@ -445,6 +494,8 @@ function createRuntimeService(ctx) {
     ensureWebChatServer,
     openWebChat,
     openCliChat,
+    chooseWorkspaceRoot,
+    linkProjectRoot,
     runBagoNode,
     runBagoSession,
     runSupervisorCmd,

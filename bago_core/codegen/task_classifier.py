@@ -461,6 +461,17 @@ def classify_code_request(
 
     if file_mentions and _has_any(lowered, _CREATE_HINTS):
         reasons.append("create_signal_detected")
+        if not file_mentions and _has_any(lowered, _ADD_TEST_PHRASES):
+            return CodeTaskClassification(
+                kind="add_test",
+                confidence=_confidence(0.83, bonus=0.08 if target_files else 0.0),
+                reasons=tuple(reasons + ["test_signal_overrode_create"]),
+                target_files=target_files,
+                is_code_request=True,
+                blocked=False,
+                existing_files=existing_files,
+                missing_files=missing_files,
+            )
         kind = "create_file"
         if existing_files and not missing_files:
             kind = "modify_file"
@@ -491,6 +502,17 @@ def classify_code_request(
 
     if _has_any(lowered, _CREATE_HINTS):
         reasons.append("create_signal_detected")
+        if not file_mentions and _has_any(lowered, _ADD_TEST_PHRASES):
+            return CodeTaskClassification(
+                kind="add_test",
+                confidence=_confidence(0.82, bonus=0.08 if target_files else 0.0),
+                reasons=tuple(reasons + ["test_signal_overrode_create"]),
+                target_files=target_files,
+                is_code_request=True,
+                blocked=False,
+                existing_files=existing_files,
+                missing_files=missing_files,
+            )
         kind = "create_file"
         if existing_files and not missing_files:
             kind = "modify_file"

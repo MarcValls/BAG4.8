@@ -68,6 +68,7 @@ from .task_compiler import (
     ALLOWED_OPERATIONS,
     DEFAULT_FORBIDDEN_PATHS,
     CodeTaskContract,
+    CodeTaskPlan,
     compile_code_task,
 )
 
@@ -81,6 +82,7 @@ __all__ = [
     "CodeSymbol",
     "CodeTaskClassification",
     "CodeTaskContract",
+    "CodeTaskPlan",
     "CodeVerdict",
     "DEFAULT_FORBIDDEN_PATHS",
     "DEFAULT_MAX_ATTEMPTS",

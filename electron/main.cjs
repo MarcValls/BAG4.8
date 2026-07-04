@@ -60,6 +60,7 @@ function getRuntimeService() {
   if (!runtimeService) {
     runtimeService = createRuntimeService({
       app,
+      dialog,
       shell,
       execFile,
       spawn,
@@ -130,6 +131,7 @@ app.setAppUserModelId('com.bago.installation-manager');
 process.env.BAGO_INSTALLS_ROOT = INSTALLS_ROOT;
 registerIpcHandlers({
   ipcMain,
+  dialog,
   INSTALLS_ROOT,
   getDependencyService,
   getRuntimeService,
@@ -139,6 +141,15 @@ registerIpcHandlers({
 });
 
 app.whenReady().then(async () => {
+  try {
+    await getRuntimeService().ensureWebChatServer({ reuseExternal: true });
+  } catch (error) {
+    const message = `BAGO backend warmup failed: ${error && error.message ? error.message : error}`;
+    console.error(message);
+    dialog.showErrorBox('BAGO backend no disponible', String(message));
+    app.quit();
+    return;
+  }
   // P0-05 fix: create the Manager window FIRST so the user always sees a
   // recovery/loading UI. The install/repair runs in parallel; its progress
   // is streamed to the renderer through `bago:install-state` events.

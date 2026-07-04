@@ -1,5 +1,6 @@
 function registerIpcHandlers({
   ipcMain,
+  dialog,
   INSTALLS_ROOT,
   getDependencyService,
   getRuntimeService,
@@ -26,6 +27,8 @@ function registerIpcHandlers({
   handle('bago:get-installs-root', () => INSTALLS_ROOT);
   handle('bago:fetch-releases', () => getReleaseService().fetchReleases());
   handle('bago:manager-url', () => getRuntimeService().getManagerUrl());
+  handle('bago:workspace-choose-root', async () => getRuntimeService().chooseWorkspaceRoot());
+  handle('bago:workspace-link-root', (_event, root) => getRuntimeService().linkProjectRoot(root));
   handle('bago:get-chat-url', async (_event, options) => {
     const state = await getRuntimeService().ensureWebChatServer(options || {});
     return state.url;

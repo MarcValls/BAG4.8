@@ -204,6 +204,62 @@ Evidencia:
             finally:
                 mgr.close()
 
+    def test_session_manager_status_exposes_code_task_contract(self) -> None:
+        import sys
+        from types import SimpleNamespace
+
+        core = Path(__file__).resolve().parents[1] / ".bago" / "core"
+        if str(core) not in sys.path:
+            sys.path.insert(0, str(core))
+
+        from session_manager import SessionManager
+
+        mgr = SessionManager.__new__(SessionManager)
+        mgr.provider = "ollama-local"
+        mgr.model = "llama3.2:3b"
+        mgr.bago_mode = "B"
+        mgr.base_path = Path("C:/temp")
+        mgr.framework_root = Path("C:/temp/.bago")
+        mgr.project_root = Path("C:/temp")
+        mgr.workspace_state_root = Path("C:/temp/.gabo")
+        mgr.workspace_scope_root = Path("C:/temp")
+        mgr.workspace_id = "ws-test"
+        mgr.session_id = "session-test"
+        mgr.persistent_goal = ""
+        mgr.active_bridges = ["ollama-local"]
+        mgr.created_at = 0
+        mgr.total_tokens = 0
+        mgr.total_calls = 0
+        mgr.last_switch_at = None
+        mgr.switch_log = []
+        mgr.last_receipt = None
+        mgr.last_context_envelope = None
+        mgr.last_context_benchmark = None
+        mgr.last_cognitive_benchmark = None
+        mgr.last_context_certification = None
+        mgr.last_global_review = {"required": False, "reasons": []}
+        mgr.last_code_task = {"kind": "modify_file"}
+        mgr.last_code_task_contract = {
+            "operation": "modify_file",
+            "plan": {"read_files": ["src/demo.py"], "edit_files": ["src/demo.py"], "create_files": [], "verify_steps": ["check"]},
+        }
+        mgr.config = SimpleNamespace(get=lambda *_args, **_kwargs: False)
+        mgr.store = SimpleNamespace(get_meta=lambda: {}, get_history=lambda: [])
+        mgr.agent_gateway = SimpleNamespace(active=SimpleNamespace(name="default"))
+        mgr._ensure_adapter = lambda: SimpleNamespace(health_check=lambda: SimpleNamespace(ok=True, detail="ok", latency_ms=0.0))
+        mgr._git_info = lambda: ("repo", "main")
+        mgr.measure_context = lambda: {"ok": True}
+        mgr._binding_state = lambda: {"binding_confirmed": True, "binding_reason": "ok"}
+        mgr.workspace_state = lambda: {"state": "linked_confirmed"}
+        mgr.welcome_state = lambda: {}
+        mgr.menu_state = lambda: {}
+        mgr.roadmap_state = lambda: {}
+        mgr._global_review_state = lambda: {"required": False, "reasons": []}
+
+        status = mgr.status()
+        self.assertEqual(status["code_task_contract"]["operation"], "modify_file")
+        self.assertEqual(status["code_task_contract"]["plan"]["read_files"], ["src/demo.py"])
+
 
 if __name__ == "__main__":
     unittest.main()
