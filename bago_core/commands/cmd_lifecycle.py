@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bago_core.resolver import add_piece_paths
 from bago_core.workspace_paths import workspace_root
 
 BAGO_ROOT = Path(__file__).resolve().parents[2]
@@ -53,17 +54,7 @@ def _profile_backup_root(profile: str) -> Path:
 def _profile_user_state_dir(profile: str) -> Path:
     return PROFILE_DATA_ROOT / "user" / _normalize_profile(profile)
 
-for _path in (
-    BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".gabo" / "core",
-    BAGO_ROOT / ".gabo" / "chat",
-    BAGO_ROOT / ".gabo" / "providers",
-    BAGO_ROOT / ".gabo" / "api",
-    BAGO_ROOT / ".gabo" / "tools",
-):
-    _path_s = str(_path)
-    if _path_s not in sys.path:
-        sys.path.insert(0, _path_s)
+add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 def cmd_install(args: argparse.Namespace) -> int:
     import subprocess
@@ -109,6 +100,7 @@ def cmd_install(args: argparse.Namespace) -> int:
         command += ["-Mode", args.mode]
     elif repair_only:
         command += ["-Mode", "Express"]
+    command.append("-ExplorerContextMenu")
     if repair_only:
         command.append("-RepairOnly")
     if args.skip_tests:
@@ -165,6 +157,43 @@ def _remove_install_from_path(install_path: str) -> str:
     if _rewrite(winreg.HKEY_LOCAL_MACHINE):
         removed_scopes.append("machine")
     return "+".join(removed_scopes) if removed_scopes else "process"
+
+def _remove_registry_tree(winreg: Any, root: Any, subkey: str) -> None:
+    try:
+        with winreg.OpenKey(root, subkey, 0, winreg.KEY_READ | winreg.KEY_WRITE) as key:
+            index = 0
+            while True:
+                try:
+                    child = winreg.EnumKey(key, index)
+                except OSError:
+                    break
+                _remove_registry_tree(winreg, root, f"{subkey}\\{child}")
+                index += 1
+    except OSError:
+        return
+    try:
+        winreg.DeleteKey(root, subkey)
+    except OSError:
+        pass
+
+def _remove_bago_explorer_context_menu() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        import winreg  # type: ignore
+    except Exception:
+        return False
+    removed = False
+    for subkey in (
+        r"Software\Classes\Directory\shell\BAGO",
+        r"Software\Classes\Directory\Background\shell\BAGO",
+    ):
+        try:
+            _remove_registry_tree(winreg, winreg.HKEY_CURRENT_USER, subkey)
+            removed = True
+        except Exception:
+            pass
+    return removed
 
 def _zip_tree(source_dir: Path, zip_path: Path) -> None:
     zip_path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,6 +299,7 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
     try:
         _zip_tree(install_dir, backup_zip)
         removed_scope = _remove_install_from_path(str(install_dir))
+        context_menu_removed = _remove_bago_explorer_context_menu()
         if args.purge_state and user_state_dir.exists():
             _rmtree_writable(user_state_dir)
         _rmtree_writable(install_dir)
@@ -283,4 +313,5 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
         return 1
     print(f"Backup creado: {backup_zip}")
     print(f"PATH limpiado : {removed_scope}")
+    print(f"Menu contexto : {'si' if context_menu_removed else 'no'}")
     return 0

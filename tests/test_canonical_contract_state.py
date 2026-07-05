@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-
-REPO = Path(__file__).resolve().parents[1]
-CORE = REPO / ".bago" / "core"
-if str(CORE) not in sys.path:
-    sys.path.insert(0, str(CORE))
 
 from contract_state import build_model_catalog_state, build_workspace_state  # noqa: E402
 from provider_adapter import HealthStatus, ModelInfo, ProviderAdapter, ProviderResponse  # noqa: E402

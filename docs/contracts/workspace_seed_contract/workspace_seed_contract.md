@@ -5,10 +5,11 @@
 `workspace seed` prepara un workspace para que BAGO use `.gabo` como fuente dinamica de contexto.
 La semilla es una capacidad del framework, no un archivo copiado dentro de cada workspace.
 Si hace falta una huella de origen, se guarda en metadatos de `.gabo`, no en un `seed.py` local.
+La resolucion de rutas, alias y raices canónicas vive en `docs/contracts/resolver_contract.json`.
 
 ## Autoridad
 
-- `workspace_root` es la raiz del proyecto.
+- `workspace_root` es la raiz del proyecto una vez resuelta por el resolver.
 - `.gabo` es el estado portable del workspace.
 - `.bago` es el framework BAGO y no debe convertirse en estado por workspace.
 - La UI y el modelo consumen el resultado de `workspace seed`, pero no deciden la semilla.
@@ -24,7 +25,7 @@ Si hace falta una huella de origen, se guarda en metadatos de `.gabo`, no en un 
 
 ## Flujo canonico
 
-1. Resolver `workspace_root`.
+1. Resolver `workspace_root` usando el contrato de resolver.
 2. Preguntar si se quiere trabajar en el directorio del terminal o en otro directorio.
 3. Validar autoridades de ruta y salir si el root no pertenece al alcance permitido.
 4. Detectar si `.gabo` existe.

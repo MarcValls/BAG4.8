@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
 
 from directory_context import DirectoryContextEngine, DirectoryScanner  # noqa: E402
 import session_manager  # noqa: E402
@@ -181,5 +179,5 @@ def test_session_context_envelope_carries_directory_context_reasons(tmp_path, mo
     assert envelope.files_represented == ["src/service.py"]
     assert envelope.retrieved_fragments[0]["source"] == "directory_context"
     assert envelope.retrieved_fragments[0]["reason"]
-    assert envelope.session_summary["authorized_root"] == str(project)
+    assert envelope.session_summary["authorized_root"] == str(mgr.workspace_mirror_root)
     assert envelope.session_summary["workspace_state_root"].endswith(".gabo")

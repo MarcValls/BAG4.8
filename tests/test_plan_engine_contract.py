@@ -5,8 +5,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _BAGO_CORE = REPO_ROOT / ".bago" / "core"
-if str(_BAGO_CORE) not in sys.path:
-    sys.path.insert(0, str(_BAGO_CORE))
 
 
 def test_plan_engine_done_requires_evidence_and_blocked_is_structured():

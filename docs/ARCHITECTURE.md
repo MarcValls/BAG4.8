@@ -1,16 +1,19 @@
 # BAGO v4 Architecture
 
-BAGO v4.8.0 is a session-first control plane. The stable product path is the fused RC4 + RC5-R1 canon: Python 3.11+ CLI, local API, optional React UI, contracts, and evidence. C++ stays experimental and cannot block distribution.
+This document captures the structural architecture of BAGO v4.
+Operational state, live surfaces, and UI authority live in `docs/SYSTEM_OVERVIEW.md`, `docs/LIVE_SURFACES.md`, and `docs/UI_CANONICAL_CONTRACT.md`.
 
-The stable MVP boundary is defined in `docs/MVP.md`. Modules outside that boundary must be documented as partial, experimental, or planned.
+BAGO v4.8.0 is a session-first control plane.
+Product boundary lives in `docs/MVP.md`.
 
-## Operational Authority Freeze
+## Authority Model
 
-For the current audit and repair sequence, `release/v4/current` is the runtime tree that must be made reproducible and verifiable. The top-level `ui-react` folder in `C:\Users\AMTEC_Terminal_1º\BAG4.8` is treated as an auxiliary working copy until it is synchronized or explicitly retired.
-
-The React UI and the manager are presentation surfaces only. They must follow backend-confirmed state and cannot redefine framework root, workspace root, session state, provider/model state, or release validity.
-
-Each repair sprint must close with an intent-vs-result comparison before the next sprint starts. If a sprint reveals a new P0 or a conflict between canon, tests, and runtime behavior, the next sprint is blocked until that conflict is classified.
+- The editable workspace is the current source tree for development.
+- The installed runtime is a separate release target.
+- The React shell is a presentation surface only.
+- Backend-confirmed state is authoritative.
+- Evidence and contracts define what can be claimed as working.
+- UI behavior is defined elsewhere in the UI contract.
 
 ## Boundaries
 
@@ -27,57 +30,28 @@ Release artifacts must not package live state, logs, credentials, caches, `node_
 ## Runtime Layers
 
 1. Launcher layer
-   - `bago.cmd`, `bago.ps1`, `bago.sh`
-   - `bago_core/cli.py`
-   - `bago_core/launcher.py`
+   - See `docs/MODULES.md` for the current launcher and CLI inventory.
 
 2. Core session layer
-   - `.bago/core/session_manager.py`
-   - `.bago/core/context_store.py`
-   - `.bago/core/config_manager.py`
-   - `.bago/core/credential_manager.py`
+   - See `docs/MODULES.md` for the current session/control inventory.
 
 3. Provider layer
-   - `.bago/core/provider_adapter.py`
-   - `.bago/providers/ollama_local.py`
-   - `.bago/providers/ollama_cloud.py`
-   - `.bago/providers/copilot.py`
-   - `.bago/providers/anthropic.py`
-   - `.bago/providers/openrouter.py`
-   - `.bago/providers/opencode.py`
+   - See `docs/MODULES.md` for the current provider inventory.
 
 4. Control/API layer
-   - `.bago/api/bridge.py`
-   - `.bago/api/control_shadow.py`
+   - See `docs/MODULES.md` for the current control/API inventory.
 
 5. Evidence and governance layer
-   - `bago_core/evidence_bundle.py`
-   - `bago_core/claim_ledger.py`
-   - `bago_core/codegen/evidence_builder.py` (Code Forge 3B)
-   - `docs/contracts/`
-   - `docs/INTERPRETE_REFLEXIVO_IMPLEMENTATION.md` (interpretation, formalization, metacognition)
+   - Evidence and claim authorities live in `docs/CLAIMS.md`, `docs/TRACEABILITY.md`, and the evidence bundle docs.
 
 6. UI layer
-   - `ui-react`
-   - optional future `apps/mobile-expo`
-   - UI actions must stay single-path, visible, and backend-authoritative.
+   - UI authority lives in `docs/UI_CANONICAL_CONTRACT.md` and the visual grammar/review docs.
 
 7. Plan execution layer
-   - `PLAN_VERTICE`
-   - `PLAN_VERTICE/monitor`
-   - `PLAN_VERTICE/skill-draft/bago-v4-executor`
+   - Plan execution remains evidence-only and is documented separately from runtime modules.
 
 8. Code Forge layer (BAGO 4.8.0)
-   - `bago_core/codegen/task_classifier.py` — request → safe contract
-   - `bago_core/codegen/task_compiler.py` — contract → execution plan
-   - `bago_core/codegen/context_builder.py` — plan → staged file map
-   - `bago_core/codegen/patch_parser.py` — raw output → unified-diff patches
-   - `bago_core/codegen/repair_loop.py` — generate → validate → repair (≤3)
-   - `bago_core/codegen/code_verdict.py` — repair verdict → final decision
-   - `bago_core/codegen/evidence_builder.py` — verdict → audit bundle
-   - `bago_core/validation/validation_pipeline.py` — language adapters + gates
-   - `bago_core/validation/adapters/python_adapter.py` — Python gate stack
-   - `bago_core/execution/atomic_patch.py` — apply patch atomically with snapshot
+   - See the codegen and validation modules in `docs/MODULES.md`.
 
 ## Primary Data Flow
 
@@ -105,44 +79,17 @@ The API must default to local access. Non-localhost exposure requires explicit t
 
 ## Planned External Bridges
 
-These bridges are current detection surfaces, not current execution authority:
+These bridges are detection or shadow surfaces, not execution authority:
 
-- `bago engine status` for `C:\bago_true\.bago`.
-- AppData/cmd-rl detection for migration and compatibility only.
+- `bago engine status` for `C:\bago_true\.bago`
+- AppData/cmd-rl detection for migration and compatibility only
+- `bago rl status` and `bago rl shadow` for RL observation
+- `bago rl train bc` and `bago rl eval` for the safe policy layer
+- `/rl/status` and `/rl/shadow` expose the same safe state to the local API/UI
+- canary/full RL execution remains future and gated
 
-Current RL shadow bridge:
+## Structural Notes
 
-- `bago rl status` and `bago rl shadow` for RL observation.
-- `bago rl train bc` and `bago rl eval` for safe policy layer.
-- `/rl/status` and `/rl/shadow` expose the same safe state to the local API/UI.
-
-These bridges are still planned:
-
-- canary/full RL execution remains future and gated.
-
-## Current Distribution Shape
-
-Included:
-
-- Python runtime.
-- contracts.
-- evidence tooling.
-- optional React UI build.
-- launchers.
-- docs.
-
-Excluded:
-
-- `.bago/state`.
-- `.bago/logs`.
-- credentials.
-- `ui-react/node_modules`.
-- C++ build requirement.
-- checkpoints.
-
-## Next Steps
-
-1. Add release packaging scripts that enforce exclusions.
-2. Add install/update smoke tests for `C:\Program Files\BAGO`.
-3. Add policy quality metrics before canary.
-4. Implement the interpretation stack defined in `docs/INTERPRETE_REFLEXIVO_IMPLEMENTATION.md`.
+- Distribution rules live in `docs/DISTRIBUTION_CONTRACT.md`.
+- Runtime eligibility and MVP bounds live in `docs/MVP.md`.
+- Live operational inventory lives in `docs/LIVE_SURFACES.md`.

@@ -12,8 +12,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Insert bago_core path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Insert project root so launcher imports resolve when run from any cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from launcher import main
 
 if __name__ == "__main__":

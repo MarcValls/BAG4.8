@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-for relative in (".bago/core", ".bago/providers"):
-    value = str(ROOT / relative)
-    if value not in sys.path:
-        sys.path.insert(0, value)
 
 from cli_bridge import build_prompt
 import codex as codex_module

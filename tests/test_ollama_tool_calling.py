@@ -6,8 +6,6 @@ from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "providers"))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
 
 import ollama_local  # noqa: E402
 import session_manager  # noqa: E402
@@ -71,8 +69,11 @@ class _DummyAgentGateway:
 
 
 class _ToolRegistry:
+    def __init__(self, workspace_root=None, **kwargs):
+        self.workspace_root = Path(workspace_root).resolve() if workspace_root else None
+
     def __len__(self) -> int:
-        return 1
+        return 2
 
     def to_openai(self):
         return [
@@ -83,8 +84,57 @@ class _ToolRegistry:
                     "description": "Read a file",
                     "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
                 },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "file-edit",
+                    "description": "Edit a file",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "old": {"type": "string"},
+                            "new": {"type": "string"},
+                        },
+                    },
+                },
             }
         ]
+
+    def parse_tool_calls(self, payload):
+        calls = []
+        for raw in payload.get("tool_calls", []) or []:
+            function = raw.get("function", {}) if isinstance(raw, dict) else {}
+            calls.append(
+                SimpleNamespace(
+                    call_id=str(raw.get("id") or raw.get("tool_call_id") or function.get("name") or "tool-call"),
+                    name=str(function.get("name") or raw.get("name") or ""),
+                    arguments=function.get("arguments", {}) or {},
+                )
+            )
+        return calls
+
+    def execute_call(self, call):
+        root = self.workspace_root or Path.cwd()
+        path = root / str(call.arguments.get("path", ""))
+        if call.name == "file-read":
+            content = path.read_text(encoding="utf-8")
+            return SimpleNamespace(call_id=call.call_id, name=call.name, ok=True, returncode=0, content=content)
+        if call.name == "file-edit":
+            original = path.read_text(encoding="utf-8")
+            old = str(call.arguments.get("old", ""))
+            new = str(call.arguments.get("new", ""))
+            replacements = original.count(old)
+            path.write_text(original.replace(old, new), encoding="utf-8")
+            return SimpleNamespace(
+                call_id=call.call_id,
+                name=call.name,
+                ok=True,
+                returncode=0,
+                content=f'{{"ok":true,"replacements":{replacements}}}',
+            )
+        return SimpleNamespace(call_id=call.call_id, name=call.name, ok=False, returncode=1, content=f"Tool not registered: {call.name}")
 
 
 class _CaptureOllamaAdapter:
@@ -222,7 +272,7 @@ def test_ollama_local_system_prompt_includes_tool_fallback(tmp_path, monkeypatch
     monkeypatch.setattr(session_manager, "ConfigManager", _DummyConfig)
     monkeypatch.setattr(session_manager, "CredentialManager", _DummyCreds)
     monkeypatch.setattr(session_manager, "ScriptRegistry", _DummySimple)
-    monkeypatch.setattr(session_manager, "ToolRegistry", lambda *args, **kwargs: _ToolRegistry())
+    monkeypatch.setattr(session_manager, "ToolRegistry", lambda *args, **kwargs: _ToolRegistry(kwargs.get("workspace_root")))
     monkeypatch.setattr(session_manager, "KnowledgeBase", _DummySimple)
     monkeypatch.setattr(session_manager, "EmbeddingStore", _DummySimple)
     monkeypatch.setattr(session_manager, "GaboConnector", _DummySimple)
@@ -258,7 +308,7 @@ def test_plain_chat_streams_even_when_tools_are_registered(tmp_path, monkeypatch
     monkeypatch.setattr(session_manager, "ConfigManager", _DummyConfig)
     monkeypatch.setattr(session_manager, "CredentialManager", _DummyCreds)
     monkeypatch.setattr(session_manager, "ScriptRegistry", _DummySimple)
-    monkeypatch.setattr(session_manager, "ToolRegistry", lambda *args, **kwargs: _ToolRegistry())
+    monkeypatch.setattr(session_manager, "ToolRegistry", lambda *args, **kwargs: _ToolRegistry(kwargs.get("workspace_root")))
     monkeypatch.setattr(session_manager, "KnowledgeBase", _DummySimple)
     monkeypatch.setattr(session_manager, "EmbeddingStore", _DummySimple)
     monkeypatch.setattr(session_manager, "GaboConnector", _DummySimple)
@@ -297,6 +347,7 @@ def test_session_manager_allows_read_then_edit_tool_rounds(tmp_path, monkeypatch
     monkeypatch.setattr(session_manager, "ConfigManager", _DummyConfig)
     monkeypatch.setattr(session_manager, "CredentialManager", _DummyCreds)
     monkeypatch.setattr(session_manager, "ScriptRegistry", _DummySimple)
+    monkeypatch.setattr(session_manager, "ToolRegistry", lambda *args, **kwargs: _ToolRegistry(kwargs.get("workspace_root")))
     monkeypatch.setattr(session_manager, "KnowledgeBase", _DummySimple)
     monkeypatch.setattr(session_manager, "EmbeddingStore", _DummySimple)
     monkeypatch.setattr(session_manager, "GaboConnector", _DummySimple)
@@ -311,6 +362,7 @@ def test_session_manager_allows_read_then_edit_tool_rounds(tmp_path, monkeypatch
     )
 
     mgr = session_manager.SessionManager(base_path=str(project), state_root=str(tmp_path / "state"))
+    mirror_target = Path(mgr.workspace_mirror_root) / "note.txt"
     try:
         mgr.config.set("features.auto_allow_tools", True)
         mgr.config.set("features.tool_approval_policy", "always")
@@ -319,5 +371,6 @@ def test_session_manager_allows_read_then_edit_tool_rounds(tmp_path, monkeypatch
         mgr.close()
 
     assert response == "Archivo actualizado."
-    assert target.read_text(encoding="utf-8") == "new content\n"
+    assert target.read_text(encoding="utf-8") == "old content\n"
+    assert mirror_target.read_text(encoding="utf-8") == "new content\n"
     assert adapter.calls == 3

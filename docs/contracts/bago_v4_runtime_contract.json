@@ -3,7 +3,6 @@
   "contract_version": "4.8.0",
   "scope": "repository",
   "source_of_truth": [
-    "docs\\COMMUNITY.md",
     "docs\\contracts\\bago_v4_repl_contract.md",
     "docs\\contracts\\bago_v4_pipeline_contract.md",
     "docs\\contracts\\bago_v4_evidence_contract.md",
@@ -62,6 +61,6 @@
       "simulated",
       "real"
     ],
-    "example_output": "docs\\evidence\\example_bundle"
+    "example_output": "docs\\evidence\\ui_shell_current"
   }
 }

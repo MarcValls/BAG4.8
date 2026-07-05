@@ -13,4 +13,8 @@ if not exist "%BAGO_CORE%" (
     exit /b 1
 )
 
+pushd "%BAGO_ROOT%"
 python "%~dp0bago_core\cli.py" uninstall %*
+set "EXITCODE=%ERRORLEVEL%"
+popd
+exit /b %EXITCODE%

@@ -8,8 +8,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "bago_core"))
 
 cmd_chat = importlib.import_module("bago_core.commands.cmd_chat")  # noqa: E402
 from bago_core.parsers import build_parser  # noqa: E402

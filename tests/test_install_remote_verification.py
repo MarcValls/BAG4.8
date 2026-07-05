@@ -20,3 +20,5 @@ def test_remote_installer_supports_explicit_signature_policy():
     assert "[switch]$RequireSignature" in script
     assert "--batch --verify" in script
     assert "RequireSignature exige gpg.exe" in script
+    assert "$PROFILE.CurrentUserAllHosts" in script
+    assert "$PROFILE.CurrentUserCurrentHost" in script

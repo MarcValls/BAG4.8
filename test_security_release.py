@@ -14,8 +14,17 @@ BAGO_ROOT = Path(__file__).resolve().parent
 CURRENT_RELEASE = (BAGO_ROOT / "release_version.txt").read_text(encoding="utf-8").strip().lstrip("v")
 CURRENT_EVIDENCE_DIR = "docs/evidence/release_4_7_0"
 EXPECTED_EVIDENCE_RELEASE = "4.7.0"
-sys.path.insert(0, str(BAGO_ROOT / ".bago" / "core"))
-sys.path.insert(0, str(BAGO_ROOT / ".bago" / "api"))
+sys.path.insert(0, str(BAGO_ROOT))
+
+from bago_core.resolver import resolve_piece_path
+
+CORE_DIR = resolve_piece_path("core.package")
+API_DIR = resolve_piece_path("api.package")
+CHAT_DIR = resolve_piece_path("chat.package")
+TOOLS_DIR = resolve_piece_path("tools.package")
+
+sys.path.insert(0, str(CORE_DIR))
+sys.path.insert(0, str(API_DIR))
 
 from bridge import BagoAPIHandler, BagoAPIServer
 from config_manager import ConfigManager
@@ -47,7 +56,7 @@ def test_state_root_is_separate_from_cwd() -> None:
 
 
 def test_execute_command_has_no_shell_true() -> None:
-    src = (BAGO_ROOT / ".bago" / "core" / "tool_registry.py").read_text(encoding="utf-8")
+    src = (CORE_DIR / "tool_registry.py").read_text(encoding="utf-8")
     exposed = [
         line.strip()
         for line in src.splitlines()
@@ -57,7 +66,7 @@ def test_execute_command_has_no_shell_true() -> None:
 
 
 def test_cors_does_not_allow_wildcard() -> None:
-    src = (BAGO_ROOT / ".bago" / "api" / "bridge.py").read_text(encoding="utf-8")
+    src = (API_DIR / "bridge.py").read_text(encoding="utf-8")
     assert 'Access-Control-Allow-Origin", "*"' not in src
     assert "Access-Control-Allow-Origin', '*'" not in src
 
@@ -159,12 +168,12 @@ def test_manager_surfaces_startup_dependencies_and_provider_onboarding() -> None
     patch_manager = (BAGO_ROOT / "manager" / "js" / "patch-manager.js").read_text(encoding="utf-8")
     preload = (BAGO_ROOT / "electron" / "preload.cjs").read_text(encoding="utf-8")
     release_job_manager = (BAGO_ROOT / "electron" / "release-job-manager.cjs").read_text(encoding="utf-8")
-    chat_commands = (BAGO_ROOT / ".bago" / "chat" / "commands.py").read_text(encoding="utf-8")
-    chat_repl = (BAGO_ROOT / ".bago" / "chat" / "repl.py").read_text(encoding="utf-8")
-    intent_engine = (BAGO_ROOT / ".bago" / "core" / "intent_engine.py").read_text(encoding="utf-8")
-    tool_registry = (BAGO_ROOT / ".bago" / "core" / "tool_registry.py").read_text(encoding="utf-8")
-    command_intents = (BAGO_ROOT / ".bago" / "core" / "command_intents.json").read_text(encoding="utf-8")
-    project_memory = (BAGO_ROOT / ".bago" / "tools" / "project_memory.py").read_text(encoding="utf-8")
+    chat_commands = (CHAT_DIR / "commands.py").read_text(encoding="utf-8")
+    chat_repl = (CHAT_DIR / "repl.py").read_text(encoding="utf-8")
+    intent_engine = (CORE_DIR / "intent_engine.py").read_text(encoding="utf-8")
+    tool_registry = (CORE_DIR / "tool_registry.py").read_text(encoding="utf-8")
+    command_intents = (CORE_DIR / "command_intents.json").read_text(encoding="utf-8")
+    project_memory = (TOOLS_DIR / "project_memory.py").read_text(encoding="utf-8")
 
     assert "createDependencyService" in main_script
     assert "createRuntimeService" in main_script
@@ -174,7 +183,7 @@ def test_manager_surfaces_startup_dependencies_and_provider_onboarding() -> None
     assert "require('./window-service.cjs')" in main_script
     assert "require('./ipc-service.cjs')" in main_script
     assert "registerIpcHandlers" in main_script
-    assert "createManagerWindow()" in main_script
+    assert "createManagerWindow({ getRuntimeService })" in main_script
     assert "dependency-service.cjs" in main_script
     assert "ipcMain.handle" not in main_script
     assert "ROOT_DIR" in environment
@@ -225,8 +234,8 @@ def test_manager_surfaces_startup_dependencies_and_provider_onboarding() -> None
     assert "deleteJob" in release_job_manager
     assert "pmRenderControl" in patch_manager
     assert "\"project\"" in chat_commands
-    assert "Analiza, siembra o vincula el proyecto" in chat_commands
-    repl_menu = (BAGO_ROOT / ".bago" / "chat" / "repl_menu.py").read_text(encoding="utf-8")
+    assert "Analiza, siembra, sincroniza o vincula el proyecto" in chat_commands
+    repl_menu = (CHAT_DIR / "repl_menu.py").read_text(encoding="utf-8")
     assert "Proyecto detectado" in repl_menu
     assert "is_transcript" in chat_repl
     assert "BAGO_INTENT_EXAMPLES_PATH" in tool_registry

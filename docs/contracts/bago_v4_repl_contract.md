@@ -35,7 +35,7 @@ Los comandos que generan estructuras adicionales pueden añadir claves como `pla
 Debe pasar sin red ni credenciales usando:
 
 ```powershell
-python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\example_bundle --overwrite
+python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\ui_shell_current --overwrite
 ```
 
 La evidencia simulada debe incluir:
@@ -60,4 +60,3 @@ El modo real falla si el provider no responde o si la respuesta queda vacía.
 python test_e2e.py
 python .bago\chat\commands.py --test
 ```
-

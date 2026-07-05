@@ -20,6 +20,7 @@ EVIDENCE_DIRS = [
 # before the evidence bundle is produced.
 if CURRENT_RELEASE_EVIDENCE.is_dir():
     EVIDENCE_DIRS.append(CURRENT_RELEASE_EVIDENCE)
+EVIDENCE_DIRS = [path for path in EVIDENCE_DIRS if path.is_dir()]
 
 
 def _sha256(path: Path) -> str:

@@ -69,3 +69,7 @@ def test_install_assistant_resolves_current_tree(tmp_path):
         check=True,
     )
     assert "tree contents valid" in validate.stdout
+
+    script = (REPO_ROOT / "install-assistant.ps1").read_text(encoding="utf-8")
+    assert "$PROFILE.CurrentUserAllHosts" in script
+    assert "$PROFILE.CurrentUserCurrentHost" in script

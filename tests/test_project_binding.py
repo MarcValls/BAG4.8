@@ -8,9 +8,6 @@ from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "chat"))
 
 session_manager = importlib.import_module("session_manager")  # noqa: E402
 repl_menu = importlib.import_module("repl_menu")  # noqa: E402
@@ -153,7 +150,7 @@ def test_session_manager_rebinds_project_root(tmp_path, monkeypatch):
     mgr = session_manager.SessionManager(base_path=str(tmp_path / "home"), state_root=str(state_root))
     mgr.rebind_project_root(project)
 
-    assert mgr.base_path == project
+    assert mgr.base_path == mgr.workspace_mirror_root
     assert mgr.project_root == project
     assert mgr.workspace_scope_root == project
     assert mgr.workspace_state_root == project / ".gabo"

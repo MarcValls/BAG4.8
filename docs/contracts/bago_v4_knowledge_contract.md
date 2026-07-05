@@ -43,8 +43,7 @@ Necesidad del usuario
 El bundle generado por:
 
 ```powershell
-python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\example_bundle --overwrite
+python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\ui_shell_current --overwrite
 ```
 
 debe contener `knowledge\recent_memories.json` con la memoria añadida durante la ejecución.
-

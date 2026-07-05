@@ -10,50 +10,55 @@ CLAIMS = ROOT / "docs" / "CLAIMS.md"
 
 
 class ClaimsDocsSyncTests(unittest.TestCase):
-    def test_readme_mvp_status_rows_are_backed_by_claims_matrix(self) -> None:
+    def test_readme_status_rows_point_to_canonical_docs(self) -> None:
         readme = README.read_text(encoding="utf-8").lower()
         claims = CLAIMS.read_text(encoding="utf-8").lower()
 
-        expected = {
-            "cli": ("bago has a functional cli", "python bago_core\\cli.py validate"),
-            "persistent session": ("bago persists sessions", "python test_e2e.py"),
-            "provider/model switch": (
-                "bago can switch provider/model without losing session availability",
-                "python test_e2e.py",
-            ),
-            "ollama local startup": ("bago supports ollama local", "python bago_core\\cli.py llm list"),
-            "local api": ("bago local api is safe by default", "python .bago\\api\\bridge.py --test"),
-            "evidence bundles": ("bago can generate evidence bundles", "python bago_core\\cli.py evidence --test"),
-            "security validation": ("bago local api is safe by default", "python test_security_release.py"),
-            "react ui": ("react ui is available", "cd ui-react; npm run build"),
-        }
+        self.assertIn("current product status", readme)
+        self.assertIn("the stable mvp is intentionally small", readme)
+        self.assertIn("post-mvp or experimental", readme)
+        self.assertIn("docs/claims.md", readme)
+        self.assertIn("docs/testing.md", readme)
+        self.assertIn("docs/mvp.md", readme)
+        self.assertIn("docs/support_matrix.md", readme)
+        self.assertIn("docs/security.md", readme)
+        self.assertIn("docs/ui_canonical_contract.md", readme)
 
-        for label, (claim, proof) in expected.items():
+        for label in [
+            "| persistent session |",
+            "| provider/model switch |",
+            "| ollama local startup |",
+            "| evidence bundles |",
+            "| security validation |",
+            "| react ui |",
+        ]:
             with self.subTest(label=label):
-                self.assertIn(label, readme)
-                self.assertIn(claim, claims)
-                self.assertIn(proof, claims)
+                self.assertNotIn(label, readme)
+
+        self.assertIn("bago has a functional cli", claims)
+        self.assertIn("bago install/update/uninstall flow is supported", claims)
+        self.assertIn("bago security validation is executable", claims)
+        self.assertNotIn("python ", claims)
 
     def test_readme_experimental_rows_match_claims_boundaries(self) -> None:
         readme = README.read_text(encoding="utf-8").lower()
         claims = CLAIMS.read_text(encoding="utf-8").lower()
 
         expected = {
-            "rl policy layer": "rl learns preferences",
-            "agents and autopilot": "agents/autopilot can execute work",
-            "cloud multiprovider completeness": "cloud providers are supported",
+            "rl policy layer": "docs/mvp.md",
+            "agents and autopilot": "docs/mvp.md",
+            "cloud multiprovider completeness": "docs/support_matrix.md",
         }
 
-        for label, claim in expected.items():
+        for label, docref in expected.items():
             with self.subTest(label=label):
                 self.assertIn(label, readme)
-                self.assertIn(claim, claims)
+                self.assertIn(docref, readme)
 
         self.assertIn("c++ runtime", readme)
         self.assertIn("experimental", readme)
-        self.assertNotIn("c++ runtime", claims)
         self.assertIn("advanced knowledge/embedding store", readme)
-        self.assertIn("must remain separate from the mvp claim set", readme)
+        self.assertIn("stable mvp", readme)
 
 
 if __name__ == "__main__":

@@ -9,8 +9,6 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _BAGO_CORE = REPO_ROOT / ".bago" / "core"
-if str(_BAGO_CORE) not in sys.path:
-    sys.path.insert(0, str(_BAGO_CORE))
 
 
 def test_context_fragment_and_envelope_round_trip():

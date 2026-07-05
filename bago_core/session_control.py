@@ -5,15 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
-from .workspace_paths import workspace_root
+from .resolver import add_piece_paths, resolve_piece_path
 
-CORE_DIR = Path(__file__).resolve().parents[1] / ".gabo" / "core"
-if str(CORE_DIR) not in sys.path:
-    sys.path.insert(0, str(CORE_DIR))
+add_piece_paths("core.package")
 
 from context_store import ContextStore  # noqa: E402
 from session_manager import ADAPTER_REGISTRY, BAGO_MODES, SessionManager  # noqa: E402
@@ -24,11 +21,11 @@ def _base_path(value: str) -> Path:
 
 
 def _summary_path(base_path: Path, session_id: str) -> Path:
-    return base_path / ".gabo" / "state" / "sessions" / f"{session_id}.json"
+    return resolve_piece_path("workspace.state_root") / "state" / "sessions" / f"{session_id}.json"
 
 
 def list_sessions(base_path: Path) -> list[dict[str, Any]]:
-    sessions = ContextStore.list_sessions(base_dir=base_path / ".gabo" / "state")
+    sessions = ContextStore.list_sessions(base_dir=resolve_piece_path("workspace.state_root") / "state")
     for item in sessions:
         path = _summary_path(base_path, item["sid"])
         if not path.exists():

@@ -47,6 +47,45 @@ function createInstallService(ctx) {
     } catch {}
   }
 
+  function parseInstallResult(stdout) {
+    const lines = String(stdout || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      try {
+        const payload = JSON.parse(lines[i]);
+        if (payload && typeof payload === 'object' && payload.installed_to) {
+          return payload;
+        }
+      } catch {}
+    }
+    return null;
+  }
+
+  function buildInstallDetail(runtimePath, installResult) {
+    const lines = [`Ubicación: ${runtimePath}`];
+    const shortcuts = installResult && installResult.shortcuts ? installResult.shortcuts : null;
+    const explorerContextMenu = installResult && installResult.explorer_context_menu ? installResult.explorer_context_menu : null;
+    const profilePaths = installResult && Array.isArray(installResult.profile_paths) ? installResult.profile_paths : [];
+    if (shortcuts && shortcuts.desktop && shortcuts.start_menu) {
+      lines.push('Accesos directos:');
+      lines.push(`- Escritorio: ${shortcuts.desktop}`);
+      lines.push(`- Inicio: ${shortcuts.start_menu}`);
+    }
+    if (explorerContextMenu && explorerContextMenu.directory) {
+      lines.push('Menu contextual:');
+      lines.push(`- Directorios: ${explorerContextMenu.directory}`);
+      if (explorerContextMenu.background) {
+        lines.push(`- Fondo: ${explorerContextMenu.background}`);
+      }
+    }
+    if (profilePaths.length) {
+      lines.push('PowerShell bootstrap:');
+      for (const profilePath of profilePaths) {
+        lines.push(`- ${profilePath}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
   async function runGitPull(sourceRoot, branch) {
     const branchName = String(branch || 'main').trim() || 'main';
     return new Promise((resolve, reject) => {
@@ -103,10 +142,15 @@ function createInstallService(ctx) {
         return '';
       }
 
-      const installDir = defaultInstallDir();
+      let installDir = defaultInstallDir();
+      let installResult = null;
       emitInstallState({ phase: 'installing', installDir });
       try {
-        await getDependencyService().runInstallScript(packagedRoot, installDir);
+        installResult = await getDependencyService().runInstallScript(packagedRoot, installDir);
+        const parsed = parseInstallResult(installResult && installResult.stdout);
+        if (parsed && parsed.installed_to) {
+          installDir = parsed.installed_to;
+        }
       } catch (err) {
         emitInstallState({ phase: 'failed', error: String(err && err.message || err), installDir });
         return '';
@@ -115,7 +159,7 @@ function createInstallService(ctx) {
       emitInstallState({ phase: 'ready', runtime: verified, installDir });
       await dialog.showMessageBox({
         type: 'info', buttons: ['OK'], title: 'Instalación completada',
-        message: 'BAGO se instaló correctamente.', detail: `Ubicación: ${verified}`
+        message: 'BAGO se instaló correctamente.', detail: buildInstallDetail(verified, parseInstallResult(installResult && installResult.stdout))
       });
       return verified;
     }
@@ -152,22 +196,22 @@ function createInstallService(ctx) {
         }
         case 1: {
           emitInstallState({ phase: 'repairing', installDir: runtimeRoot });
-          await getDependencyService().runInstallScript(packagedRoot, runtimeRoot, ['-RepairOnly'], 'Reparando configuración…');
+          const repairResult = await getDependencyService().runInstallScript(packagedRoot, runtimeRoot, ['-RepairOnly'], 'Reparando configuración…');
           emitInstallState({ phase: 'ready', runtime: runtimeRoot, installDir: runtimeRoot });
           await dialog.showMessageBox({
             type: 'info', buttons: ['OK'], title: 'Reparación completada',
-            message: 'La configuración de BAGO se reparó correctamente.', detail: `Ubicación: ${runtimeRoot}`
+            message: 'La configuración de BAGO se reparó correctamente.', detail: buildInstallDetail(runtimeRoot, parseInstallResult(repairResult && repairResult.stdout))
           });
           return runtimeRoot;
         }
         case 2: {
           emitInstallState({ phase: 'reinstalling', installDir: runtimeRoot });
-          await getDependencyService().runInstallScript(packagedRoot, runtimeRoot, [], 'Reinstalando BAGO…');
+          const reinstallResult = await getDependencyService().runInstallScript(packagedRoot, runtimeRoot, [], 'Reinstalando BAGO…');
           const verified = resolveBagoRuntimeRoot();
           emitInstallState({ phase: 'ready', runtime: verified, installDir: runtimeRoot });
           await dialog.showMessageBox({
             type: 'info', buttons: ['OK'], title: 'Reinstalación completada',
-            message: 'BAGO se reinstaló correctamente.', detail: `Ubicación: ${verified}`
+            message: 'BAGO se reinstaló correctamente.', detail: buildInstallDetail(verified, parseInstallResult(reinstallResult && reinstallResult.stdout))
           });
           return verified;
         }
@@ -188,11 +232,11 @@ function createInstallService(ctx) {
           }
           const newDir = filePaths[0];
           emitInstallState({ phase: 'installing', installDir: newDir });
-          await getDependencyService().runInstallScript(packagedRoot, newDir, [], 'Instalando nueva copia…');
+          const copyResult = await getDependencyService().runInstallScript(packagedRoot, newDir, [], 'Instalando nueva copia…');
           emitInstallState({ phase: 'ready', runtime: runtimeRoot, installDir: newDir });
           await dialog.showMessageBox({
             type: 'info', buttons: ['OK'], title: 'Nueva copia completada',
-            message: 'La nueva copia de BAGO se instaló correctamente.', detail: `Ubicación: ${newDir}`
+            message: 'La nueva copia de BAGO se instaló correctamente.', detail: buildInstallDetail(newDir, parseInstallResult(copyResult && copyResult.stdout))
           });
           return runtimeRoot;
         }

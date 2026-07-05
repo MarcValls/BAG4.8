@@ -1,22 +1,12 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
-
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 class RoadmapContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        core = ROOT / ".bago" / "core"
-        chat = ROOT / ".bago" / "chat"
-        if str(core) not in sys.path:
-            sys.path.insert(0, str(core))
-        if str(chat) not in sys.path:
-            sys.path.insert(0, str(chat))
+        pass
 
     def test_roadmap_state_groups_three_iterations(self) -> None:
         from contract_state import build_roadmap_state

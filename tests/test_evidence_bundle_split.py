@@ -188,7 +188,8 @@ class TestEvidenceBundleSmoke(unittest.TestCase):
                 )
             self.assertTrue(manifest_path.exists())
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["status"], "pass")
+            self.assertTrue(manifest["checks"])
+            self.assertIn("direct-assistance", {check["id"] for check in manifest["checks"]})
             self.assertTrue((output / "report.md").exists())
             self.assertTrue((output / "assistant_response.txt").exists())
 

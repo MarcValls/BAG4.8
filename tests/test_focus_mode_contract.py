@@ -9,21 +9,26 @@ UI_SRC = ROOT / "ui-react" / "src"
 
 
 class FocusModeContractTests(unittest.TestCase):
-    def test_review_mode_wires_single_surface_focus(self) -> None:
-        app = (UI_SRC / "App.jsx").read_text(encoding="utf-8")
-        self.assertIn("reviewMode", app)
-        self.assertIn("workspace--review", app)
-        self.assertIn("reviewRailCollapsedRef", app)
-        self.assertIn("setReviewMode(true)", app)
-        self.assertIn("setReviewMode(false)", app)
-        self.assertIn("setRailCollapsed(reviewRailCollapsedRef.current)", app)
-        self.assertIn("reviewMode ? null : (", app)
+    def test_focus_and_review_modes_are_canonical(self) -> None:
+        app = (UI_SRC / "app" / "ControlPlane.tsx").read_text(encoding="utf-8")
+        header = (UI_SRC / "layout" / "GlobalHeader.tsx").read_text(encoding="utf-8")
+        shell = (UI_SRC / "layout" / "WorkspaceShell.tsx").read_text(encoding="utf-8")
 
-    def test_topbar_hides_secondary_strip_in_review(self) -> None:
-        topbar = (UI_SRC / "components" / "ManagerTopBar.jsx").read_text(encoding="utf-8")
-        self.assertIn("reviewMode ? null :", topbar)
-        self.assertIn("Review", topbar)
-        self.assertIn("Abrir paleta de comandos", topbar)
+        self.assertIn("globalMode: 'normal' | 'focus' | 'review'", header)
+        self.assertIn("uiState.globalMode === 'normal' && (", app)
+        self.assertIn("uiState.globalMode === 'focus'", app)
+        self.assertIn("uiState.globalMode === 'review'", app)
+        self.assertIn("mode-${props.mode}", shell)
+        self.assertIn("focus-header", header)
+        self.assertIn("Salir de Focus", header)
+        self.assertIn("Revisión", header)
+
+    def test_normal_mode_is_the_only_mode_with_sidebar_and_inspector(self) -> None:
+        app = (UI_SRC / "app" / "ControlPlane.tsx").read_text(encoding="utf-8")
+        self.assertIn("{uiState.globalMode === 'normal' && (", app)
+        self.assertIn("<MainSidebar", app)
+        self.assertIn("<SelectionInspector", app)
+        self.assertIn("<StatusBar", app)
 
 
 if __name__ == "__main__":

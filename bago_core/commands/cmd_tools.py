@@ -5,35 +5,14 @@ import argparse
 import sys
 from pathlib import Path
 
-BAGO_ROOT = Path(__file__).resolve().parents[2]
+from bago_core.resolver import add_piece_paths, load_piece_module
 
-for _path in (
-    BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".gabo" / "core",
-    BAGO_ROOT / ".gabo" / "chat",
-    BAGO_ROOT / ".gabo" / "providers",
-    BAGO_ROOT / ".gabo" / "api",
-    BAGO_ROOT / ".gabo" / "tools",
-):
-    _path_s = str(_path)
-    if _path_s not in sys.path:
-        sys.path.insert(0, _path_s)
+BAGO_ROOT = Path(__file__).resolve().parents[2]
+add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 def _load_tool_module(module_name: str, file_name: str):
-    import importlib.util
-
-    tool_path = BAGO_ROOT / ".gabo" / "tools" / file_name
-    spec = importlib.util.spec_from_file_location(module_name, tool_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"No se pudo cargar la herramienta: {tool_path}")
-    mod = importlib.util.module_from_spec(spec)
-    # Register in sys.modules BEFORE exec so dataclasses can resolve __module__
+    mod = load_piece_module("tools.package", module_name, file_name)
     sys.modules[module_name] = mod
-    try:
-        spec.loader.exec_module(mod)
-    except Exception:
-        sys.modules.pop(module_name, None)
-        raise
     return mod
 
 def cmd_project(args: argparse.Namespace) -> int:
@@ -182,9 +161,7 @@ def cmd_route(args: argparse.Namespace) -> int:
 
 def cmd_scan(args: argparse.Namespace) -> int:
     """Herramientas de analisis portables. Funcionan en cualquier proyecto."""
-    tools_dir = BAGO_ROOT / ".gabo" / "tools"
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
+    add_piece_paths("tools.package")
 
     subcmd = getattr(args, "scan_cmd", None)
     root   = getattr(args, "root", "") or ""
@@ -377,9 +354,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 0
 
 def cmd_canary(args):
-    tools_dir = BAGO_ROOT / ".gabo" / "tools"
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
+    add_piece_paths("tools.package")
     import bago_canary
     root = getattr(args, 'root', '') or ''
     subcmd = getattr(args, 'canary_cmd', None)
@@ -393,9 +368,7 @@ def cmd_canary(args):
     return bago_canary.main(argv)
 
 def cmd_backup(args):
-    tools_dir = BAGO_ROOT / ".gabo" / "tools"
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
+    add_piece_paths("tools.package")
     import bago_backup_vault
     root = getattr(args, 'root', '') or ''
     subcmd = getattr(args, 'backup_cmd', None)
@@ -411,9 +384,7 @@ def cmd_backup(args):
     return bago_backup_vault.main(argv)
 
 def cmd_inventory(args):
-    tools_dir = BAGO_ROOT / ".gabo" / "tools"
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
+    add_piece_paths("tools.package")
     import bago_inventory
     root = getattr(args, 'root', '') or ''
     argv = ['--root', root] if root else []

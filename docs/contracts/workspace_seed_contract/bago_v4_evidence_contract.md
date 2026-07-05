@@ -39,7 +39,7 @@ Toda evidencia debe incluir en `manifest.json`:
 **Comando contractual:**
 
 ```powershell
-python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\example_bundle --overwrite
+python bago_core\cli.py evidence --mode simulated --objective community-knowledge --output docs\evidence\ui_shell_current --overwrite
 ```
 
 **Objetivos mínimos:**
@@ -76,4 +76,3 @@ Una evidencia falla si cualquiera de sus `checks` queda en `fail` o si el bundle
 ```powershell
 python bago_core\cli.py evidence --test
 ```
-

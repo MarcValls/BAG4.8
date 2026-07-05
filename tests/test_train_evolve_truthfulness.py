@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import sys
 from types import SimpleNamespace
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / ".bago" / "chat"))
-sys.path.insert(0, str(ROOT / ".bago" / "core"))
 
 from commands import cmd_evolve, cmd_train
 

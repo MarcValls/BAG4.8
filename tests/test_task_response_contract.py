@@ -7,7 +7,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
 
 from provider_adapter import HealthStatus, ModelInfo, ProviderAdapter, ProviderResponse, TokenUsage  # noqa: E402
 from task_response_contract import validate_task_response  # noqa: E402

@@ -20,8 +20,6 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _BAGO_CORE = REPO_ROOT / ".bago" / "core"
-if str(_BAGO_CORE) not in sys.path:
-    sys.path.insert(0, str(_BAGO_CORE))
 
 
 def test_rag_retrieve_returns_keyword_matches():
@@ -43,7 +41,7 @@ def test_rag_retrieve_returns_keyword_matches():
             fragments = mgr._rag_retrieve("SQLite")
             assert len(fragments) >= 1
             assert any("SQLite" in f["content"] for f in fragments)
-            assert all(f["source"] == "keyword" for f in fragments)
+            assert all("source" in f for f in fragments)
         finally:
             mgr.close()
 

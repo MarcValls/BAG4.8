@@ -171,12 +171,12 @@
     <Content Include="README.md" />
     <Content Include="MANUAL.md" />
     <Content Include="docs\ARCHITECTURE.md" />
-    <Content Include="docs\COMMUNITY.md" />
+    <Content Include="docs\contracts\bago_v4_governance_contract.md" />
     <Content Include="docs\DISTRIBUTION_CONTRACT.md" />
     <Content Include="docs\INTEGRATION.md" />
     <Content Include="docs\MODULES.md" />
     <Content Include="docs\RL_ENGINE.md" />
-    <Content Include="docs\ROADMAP.md" />
+    <Content Include="docs\archive\roadmap\ROADMAP.legacy.md" />
     <Content Include="docs\SECURITY.md" />
     <Content Include="docs\TESTING.md" />
   </ItemGroup>

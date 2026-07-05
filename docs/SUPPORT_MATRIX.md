@@ -1,6 +1,6 @@
 # BAGO Support Matrix
 
-BAGO is Windows-first today. Other operating systems are not stable until their install, CLI, API, UI, Ollama, and packaging gates pass.
+BAGO is Windows-first.
 
 | Surface | Windows | macOS | Linux |
 |---|---|---|---|
@@ -8,9 +8,9 @@ BAGO is Windows-first today. Other operating systems are not stable until their 
 | CLI | Supported | Experimental | Experimental |
 | Session persistence | Supported | Experimental | Experimental |
 | Provider switch | Supported | Experimental | Experimental |
-| Ollama local | Supported when Ollama is installed | Experimental | Experimental |
+| Ollama local | Supported when installed | Experimental | Experimental |
 | Local API | Supported | Experimental | Experimental |
-| React UI | Optional, buildable with Node/npm | Experimental | Experimental |
+| React UI | Optional | Experimental | Experimental |
 | Packaging | Supported via Windows release flow | Planned | Planned |
 | Uninstall/rollback | Supported | Planned | Planned |
 
@@ -25,6 +25,6 @@ python bago_core\cli.py llm list
 python bago_core\cli.py llm start --provider ollama-local --model llama3.2:3b --dry-run
 ```
 
-## Non-Windows Rule
+## Rule
 
-Do not mark macOS or Linux as supported until the same gate passes on that platform and the install/uninstall behavior is documented.
+Do not mark a non-Windows surface as supported until the same gate passes there.

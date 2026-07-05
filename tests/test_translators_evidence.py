@@ -13,9 +13,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-# Allow running this file as `python tests/test_translators_evidence.py` from BAGO root.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 # Ensure shared/base is on sys.path for direct ir_types imports in tests.
 sys.path.insert(0, str(Path(os.environ.get("ProgramData", r"C:\ProgramData"))
                        / "BAGO" / "pieces" / "translators" / "shared" / "base"))

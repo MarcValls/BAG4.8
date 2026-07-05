@@ -13,12 +13,6 @@ EXPECTED_VERSION = (ROOT / "release_version.txt").read_text(encoding="utf-8").st
 
 class VersionDriftTests(unittest.TestCase):
     def test_new_session_metadata_uses_release_version(self) -> None:
-        import sys
-
-        core = ROOT / ".bago" / "core"
-        if str(core) not in sys.path:
-            sys.path.insert(0, str(core))
-
         from session_manager import SessionManager
 
         with tempfile.TemporaryDirectory() as tmp:

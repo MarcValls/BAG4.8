@@ -7,9 +7,12 @@ param(
     [string]$BackupRoot = "$env:ProgramData\BAGO\backups",
     [string]$UserStateDir = "$env:ProgramData\BAGO\user",
     [string]$Mode = "",
-    [switch]$SkipTests,
-    [switch]$RepairOnly,
-    [switch]$NoPathUpdate
+[switch]$SkipTests,
+[switch]$RepairOnly,
+[switch]$NoPathUpdate,
+[switch]$ExplorerContextMenu,
+[switch]$ElevatedChild,
+[string]$ResultPath = ""
 )
 
 Set-StrictMode -Version Latest
@@ -45,6 +48,78 @@ function Assert-SafeTarget {
         throw "Unsafe install target: $full"
     }
     return $full
+}
+
+function Test-IsAdministrator {
+    if ($env:PROCESSOR_ARCHITECTURE -eq "") { return $true }
+    try {
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
+        return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Get-InvocationArguments {
+    $args = New-Object System.Collections.Generic.List[string]
+    foreach ($name in @("SourceRoot", "PackageZip", "Profile", "InstallDir", "BackupRoot", "UserStateDir", "Mode", "ResultPath")) {
+        if (-not $PSBoundParameters.ContainsKey($name)) { continue }
+        $value = Get-Variable -Name $name -ValueOnly
+        if ([string]::IsNullOrWhiteSpace([string]$value)) { continue }
+        $args.Add("-$name")
+        $args.Add([string]$value)
+    }
+    foreach ($name in @("SkipTests", "RepairOnly", "NoPathUpdate", "ExplorerContextMenu")) {
+        if ($PSBoundParameters.ContainsKey($name) -and [bool](Get-Variable -Name $name -ValueOnly)) {
+            $args.Add("-$name")
+        }
+    }
+    if ($PSBoundParameters.ContainsKey("ElevatedChild") -and [bool](Get-Variable -Name "ElevatedChild" -ValueOnly)) {
+        $args.Add("-ElevatedChild")
+    }
+    return $args.ToArray()
+}
+
+function Invoke-SelfElevatedInstall {
+    param([Parameter(Mandatory = $true)][string]$ScriptPath)
+    $resultFile = if ($ResultPath) { $ResultPath } else { Join-Path ([System.IO.Path]::GetTempPath()) ("bago-install-result-" + [Guid]::NewGuid().ToString("N") + ".json") }
+    $args = New-Object System.Collections.Generic.List[string]
+    $args.Add("-NoProfile")
+    $args.Add("-ExecutionPolicy")
+    $args.Add("Bypass")
+    $args.Add("-File")
+    $args.Add($ScriptPath)
+    foreach ($arg in (Get-InvocationArguments)) {
+        $args.Add($arg)
+    }
+    if (-not $args.Contains("-ElevatedChild")) {
+        $args.Add("-ElevatedChild")
+    }
+    if (-not $PSBoundParameters.ContainsKey("ResultPath") -or [string]::IsNullOrWhiteSpace($ResultPath)) {
+        $args.Add("-ResultPath")
+        $args.Add($resultFile)
+    }
+    $ps = (Get-Command powershell.exe -ErrorAction SilentlyContinue).Source
+    if (-not $ps) { $ps = "powershell.exe" }
+    $process = Start-Process -FilePath $ps -Verb RunAs -Wait -PassThru -ArgumentList $args.ToArray()
+    if (Test-Path -LiteralPath $resultFile) {
+        try {
+            Get-Content -LiteralPath $resultFile -Raw
+        } finally {
+            Remove-Item -LiteralPath $resultFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+    exit $process.ExitCode
+}
+
+function Write-InstallResult {
+    param([Parameter(Mandatory = $true)][object]$Result)
+    $json = $Result | ConvertTo-Json -Depth 4
+    if ($ResultPath) {
+        Set-Content -LiteralPath $ResultPath -Value $json -Encoding UTF8
+    }
+    return $json
 }
 
 function Normalize-ProfileName {
@@ -107,6 +182,12 @@ if ($Profile) {
     }
 }
 
+if (-not $ElevatedChild -and -not (Test-IsAdministrator)) {
+    $scriptPath = $PSCommandPath
+    if (-not $scriptPath) { $scriptPath = $MyInvocation.MyCommand.Path }
+    Invoke-SelfElevatedInstall -ScriptPath $scriptPath
+}
+
 function Test-ReleaseExcluded {
     param([Parameter(Mandatory = $true)][string]$RelativePath)
     $rel = $RelativePath.Replace("\", "/").TrimStart("/")
@@ -134,15 +215,15 @@ function Copy-ReleaseTree {
     )
     $sourceFull = Get-FullPath $Source
     $destFull = Get-FullPath $Destination
-    Get-ChildItem -LiteralPath $sourceFull -Force -Recurse -File | ForEach-Object {
-        $relative = Get-RelativePathCompat -BasePath $sourceFull -TargetPath $_.FullName
+    foreach ($item in (Get-ChildItem -LiteralPath $sourceFull -Force -Recurse -File)) {
+        $relative = Get-RelativePathCompat -BasePath $sourceFull -TargetPath $item.FullName
         if (Test-ReleaseExcluded $relative) {
-            return
+            continue
         }
         $target = Join-Path $destFull $relative
         $targetParent = Split-Path -Parent $target
         New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-        Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+        Copy-Item -LiteralPath $item.FullName -Destination $target -Force
     }
 }
 
@@ -244,6 +325,203 @@ function Enable-BagoCommandPath {
     foreach ($entry in $processEntries) { $newProcessEntries.Add($entry) }
     $env:Path = $newProcessEntries -join ";"
     return $scope
+}
+
+function Get-BagoShortcutTargets {
+    param([Parameter(Mandatory = $true)][string]$InstallPath)
+    $launcherCandidates = @(
+        (Join-Path $InstallPath "ABRIR_ELECTRON_BAGO.cmd"),
+        (Join-Path $InstallPath "bago.cmd"),
+        (Join-Path $InstallPath "bago.ps1")
+    )
+    foreach ($candidate in $launcherCandidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return [ordered]@{
+                launcher = (Get-FullPath $candidate)
+                kind = [System.IO.Path]::GetExtension($candidate).ToLowerInvariant()
+            }
+        }
+    }
+    throw "No se encontro un lanzador de BAGO dentro de: $InstallPath"
+}
+
+function New-WindowsShortcut {
+    param(
+        [Parameter(Mandatory = $true)][string]$ShortcutPath,
+        [Parameter(Mandatory = $true)][string]$TargetPath,
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [string]$Arguments = "",
+        [string]$Description = "",
+        [string]$IconLocation = ""
+    )
+    $parent = Split-Path -Parent $ShortcutPath
+    if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($ShortcutPath)
+    $shortcut.TargetPath = $TargetPath
+    $shortcut.WorkingDirectory = $WorkingDirectory
+    if ($Arguments) { $shortcut.Arguments = $Arguments }
+    if ($Description) { $shortcut.Description = $Description }
+    if ($IconLocation) { $shortcut.IconLocation = $IconLocation }
+    $shortcut.Save()
+}
+
+function Install-BagoShortcuts {
+    param([Parameter(Mandatory = $true)][string]$InstallPath)
+    $targets = Get-BagoShortcutTargets -InstallPath $InstallPath
+    $desktopRoot = [Environment]::GetFolderPath("Desktop")
+    if (-not $desktopRoot) { $desktopRoot = Join-Path $env:USERPROFILE "Desktop" }
+    $startMenuRoot = [Environment]::GetFolderPath("Programs")
+    if (-not $startMenuRoot) { $startMenuRoot = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs" }
+    $startMenuFolder = Join-Path $startMenuRoot "BAGO"
+    $shortcutName = "BAGO.lnk"
+    $desktopShortcut = Join-Path $desktopRoot $shortcutName
+    $startMenuShortcut = Join-Path $startMenuFolder $shortcutName
+    $comSpec = $env:ComSpec
+    if (-not $comSpec) { $comSpec = Join-Path $env:SystemRoot "System32\cmd.exe" }
+    $arguments = if ($targets.kind -eq ".ps1") {
+        "-NoProfile -ExecutionPolicy Bypass -File `"$($targets.launcher)`""
+    } else {
+        "/c `"$($targets.launcher)`""
+    }
+    $iconPath = Join-Path $InstallPath "bago.ico"
+    $iconLocation = if (Test-Path -LiteralPath $iconPath) { "$iconPath,0" } else { "" }
+    New-WindowsShortcut -ShortcutPath $desktopShortcut -TargetPath $comSpec -WorkingDirectory $InstallPath -Arguments $arguments -Description "BAGO" -IconLocation $iconLocation
+    New-WindowsShortcut -ShortcutPath $startMenuShortcut -TargetPath $comSpec -WorkingDirectory $InstallPath -Arguments $arguments -Description "BAGO" -IconLocation $iconLocation
+    return [ordered]@{
+        launcher = $targets.launcher
+        desktop = $desktopShortcut
+        start_menu = $startMenuShortcut
+        shortcut_name = $shortcutName
+        launcher_kind = $targets.kind
+    }
+}
+
+function Get-BagoExplorerContextMenuCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$InstallPath,
+        [Parameter(Mandatory = $true)][string]$Placeholder
+    )
+    $launcher = Join-Path $InstallPath "bago.ps1"
+    return "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"Set-Location -LiteralPath '$Placeholder'; & '$launcher'`""
+}
+
+function Install-BagoExplorerContextMenu {
+    param([Parameter(Mandatory = $true)][string]$InstallPath)
+    $targets = @(
+        [ordered]@{
+            key = "HKCU:\Software\Classes\Directory\shell\BAGO"
+            label = "Abrir con BAGO"
+            placeholder = "%1"
+        },
+        [ordered]@{
+            key = "HKCU:\Software\Classes\Directory\Background\shell\BAGO"
+            label = "Abrir con BAGO"
+            placeholder = "%V"
+        }
+    )
+    $iconPath = Join-Path $InstallPath "bago.ico"
+    $iconValue = if (Test-Path -LiteralPath $iconPath) { $iconPath } else { (Join-Path $InstallPath "bago.ps1") }
+    foreach ($target in $targets) {
+        New-Item -Path $target.key -Force | Out-Null
+        New-ItemProperty -Path $target.key -Name "MUIVerb" -Value $target.label -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $target.key -Name "Icon" -Value $iconValue -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $target.key -Name "Position" -Value "Top" -PropertyType String -Force | Out-Null
+        $commandKey = Join-Path $target.key "command"
+        New-Item -Path $commandKey -Force | Out-Null
+        $command = Get-BagoExplorerContextMenuCommand -InstallPath $InstallPath -Placeholder $target.placeholder
+        Set-Item -Path $commandKey -Value $command
+    }
+    return [ordered]@{
+        directory = "HKCU:\Software\Classes\Directory\shell\BAGO"
+        background = "HKCU:\Software\Classes\Directory\Background\shell\BAGO"
+        label = "Abrir con BAGO"
+    }
+}
+
+function Get-BagoProfilePaths {
+    $documents = [Environment]::GetFolderPath("MyDocuments")
+    $targets = @(
+        (Join-Path (Join-Path $documents "PowerShell") "Microsoft.PowerShell_profile.ps1"),
+        (Join-Path (Join-Path $documents "WindowsPowerShell") "Microsoft.PowerShell_profile.ps1")
+    )
+    return @($targets | Where-Object { $_ })
+}
+
+function New-BagoProfileBootstrap {
+    param([Parameter(Mandatory = $true)][string]$InstallPath)
+    $root = (Get-FullPath $InstallPath).Replace("'", "''")
+    return (@'
+# BEGIN BAGO MANAGED BLOCK
+function global:bago {
+    param([Parameter(ValueFromRemainingArguments = $true)][object[]]$Args)
+    $selectionFiles = @(
+        Join-Path $env:LOCALAPPDATA 'BAGO\install_selection.json'
+        Join-Path $env:USERPROFILE '.bago\install_selection.json'
+    ) | Where-Object { Test-Path -LiteralPath $_ }
+    $candidateRoots = @(
+        '__INSTALL_ROOT__',
+        (Join-Path $env:LOCALAPPDATA 'BAGO\active'),
+        (Join-Path $env:LOCALAPPDATA 'BAGO\launch'),
+        (Join-Path $env:USERPROFILE '.bago\active'),
+        (Join-Path $env:USERPROFILE '.bago\launch')
+    ) | Where-Object { $_ }
+    $root = ''
+    foreach ($file in $selectionFiles) {
+        try {
+            $selection = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
+            $entry = $selection.roles.active
+            if ($entry -and $entry.path -and (Test-Path -LiteralPath $entry.path)) {
+                $root = [string]$entry.path
+                break
+            }
+        } catch {}
+    }
+    if (-not $root) {
+        foreach ($candidate in $candidateRoots) {
+            if (Test-Path -LiteralPath (Join-Path $candidate 'bago.ps1')) {
+                $root = $candidate
+                break
+            }
+        }
+    }
+    if (-not $root) {
+        Write-Error 'bago: no se encontro una instalacion de BAGO'
+        return 1
+    }
+    $launcher = Join-Path $root 'bago.ps1'
+    if (-not (Test-Path -LiteralPath $launcher)) {
+        Write-Error ("bago: no se encontro " + $launcher)
+        return 1
+    }
+    & $launcher @Args
+}
+# END BAGO MANAGED BLOCK
+'@).Replace('__INSTALL_ROOT__', $root)
+}
+
+function Install-BagoProfileBootstrap {
+    param([Parameter(Mandatory = $true)][string]$InstallPath)
+    $block = New-BagoProfileBootstrap -InstallPath $InstallPath
+    $paths = Get-BagoProfilePaths
+    foreach ($profilePath in $paths) {
+        $parent = Split-Path -Parent $profilePath
+        if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        $existing = ""
+        if (Test-Path -LiteralPath $profilePath) {
+            $existing = Get-Content -LiteralPath $profilePath -Raw
+        }
+        $pattern = '(?s)# BEGIN BAGO MANAGED BLOCK.*?# END BAGO MANAGED BLOCK'
+        if ($existing -match $pattern) {
+            $updated = [regex]::Replace($existing, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($match) $block })
+        } elseif ($existing.Trim()) {
+            $updated = $existing.TrimEnd() + "`r`n`r`n" + $block
+        } else {
+            $updated = $block
+        }
+        Set-Content -LiteralPath $profilePath -Value $updated -Encoding UTF8
+    }
+    return $paths
 }
 
 function Write-JsonFile {
@@ -730,6 +1008,20 @@ if (-not $NoPathUpdate) {
     $pathScope = Enable-BagoCommandPath -InstallPath $installFull
 }
 
+$profilePaths = Install-BagoProfileBootstrap -InstallPath $installFull
+foreach ($profilePath in $profilePaths) {
+    if ($profilePath -and (Test-Path -LiteralPath $profilePath)) {
+        . $profilePath
+    }
+}
+
+$createExplorerContextMenu = $true
+if ($PSBoundParameters.ContainsKey("ExplorerContextMenu")) {
+    $createExplorerContextMenu = [bool]$ExplorerContextMenu
+} elseif ($installerMode -eq "Advanced") {
+    $createExplorerContextMenu = Read-YesNo -Prompt "Crear acceso contextual 'Abrir con BAGO' para directorios" -Default $true
+}
+
 if ($RepairOnly) {
     # Repair-only updates the runtime config in place. Some managed installs
     # keep only runtime state and do not ship the full source tree needed by
@@ -749,6 +1041,25 @@ if (-not $SkipTests) {
     }
 }
 
+$shortcuts = Install-BagoShortcuts -InstallPath $installFull
+if ($createExplorerContextMenu) {
+    $explorerContextMenuInfo = Install-BagoExplorerContextMenu -InstallPath $installFull
+} else {
+    $explorerContextMenuInfo = @{ enabled = $false }
+}
+Write-Host "Accesos directos creados:" -ForegroundColor Green
+Write-Host ("  Escritorio: {0}" -f $shortcuts.desktop)
+Write-Host ("  Inicio:     {0}" -f $shortcuts.start_menu)
+if ($createExplorerContextMenu) {
+    Write-Host "Menu contextual instalado:" -ForegroundColor Green
+    Write-Host ("  Directorios: {0}" -f $explorerContextMenuInfo.directory)
+    Write-Host ("  Fondo:       {0}" -f $explorerContextMenuInfo.background)
+}
+Write-Host "Bootstrap PowerShell instalado:" -ForegroundColor Green
+foreach ($profilePath in $profilePaths) {
+    Write-Host ("  {0}" -f $profilePath)
+}
+
 $result = [ordered]@{
     ok = $true
     profile = $profileName
@@ -759,8 +1070,11 @@ $result = [ordered]@{
     user_state_dir = $userStateFull
     path_scope = $pathScope
     command_path = (Join-Path $installFull "bago.cmd")
+    shortcuts = $shortcuts
+    explorer_context_menu = $explorerContextMenuInfo
+    profile_paths = $profilePaths
     repair_only = [bool]$RepairOnly
     timestamp = $stamp
 }
 
-$result | ConvertTo-Json -Depth 4
+Write-InstallResult -Result $result

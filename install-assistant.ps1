@@ -119,4 +119,10 @@ if ($SkipTests) { $argsList += "-SkipTests" }
 if ($NoPathUpdate) { $argsList += "-NoPathUpdate" }
 
 & powershell.exe -ExecutionPolicy Bypass -File $installScript @argsList
+$profileCandidates = @($PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Where-Object { $_ }
+foreach ($profilePath in $profileCandidates) {
+    if (Test-Path -LiteralPath $profilePath) {
+        . $profilePath
+    }
+}
 exit $LASTEXITCODE

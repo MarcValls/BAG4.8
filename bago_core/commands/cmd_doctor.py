@@ -8,7 +8,7 @@ Ejecuta chequeos end-to-end y reporta PASS/FAIL/WARN por cada dimensión:
   4. Ollama local responde
   5. Modelos locales visibles
   6. ui-react/src tiene estructura mínima
-  7. .gabo/api/ tiene los módulos esperados
+  7. la pieza de API tiene los módulos esperados
   8. verify-master.ps1 existe (si aplica)
   9. Git repo inicializado (si aplica)
 
@@ -25,6 +25,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+from bago_core.resolver import resolve_piece_path
 
 BAGO_ROOT = Path(__file__).resolve().parents[2]
 from bago_core.user_state_paths import install_selection_file, user_root, legacy_user_root
@@ -131,7 +133,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append(_check("install_selection", checks, sel_ok, sel_detail))
 
     # ── 3. Bridge importa ────────────────────────────────────────────────────
-    bridge_dir = BAGO_ROOT / ".gabo" / "api"
+    bridge_dir = resolve_piece_path("api.package")
     bridge_ok = bridge_dir.exists() and (bridge_dir / "bridge.py").exists()
     bridge_detail = ""
     if bridge_ok:
@@ -153,7 +155,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             bridge_ok = False
             fails += 1
     else:
-        bridge_detail = ".gabo/api/bridge.py no encontrado"
+        bridge_detail = "api/bridge.py no encontrado"
         fails += 1
     checks.append(_check("bridge_import", checks, bridge_ok, bridge_detail))
 
@@ -185,13 +187,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         fails += 1
     checks.append(_check("ui_react_structure", checks, ui_ok, ui_detail))
 
-    # ── 6. .gabo/api/ módulos esperados ────────────────────────────────────────
+    # ── 6. pieza de API: módulos esperados ─────────────────────────────────────
     expected_modules = [
         "bridge.py", "api_dispatch.py", "api_auth.py", "api_serializers.py",
         "request_context.py", "handlers_chat.py", "handlers_router.py",
         "handlers_routes.py",
     ]
-    api_dir = BAGO_ROOT / ".gabo" / "api"
+    api_dir = resolve_piece_path("api.package")
     present_mods = [m for m in expected_modules if (api_dir / m).exists()]
     api_ok = len(present_mods) == len(expected_modules)
     api_detail = f"{len(present_mods)}/{len(expected_modules)} módulos presentes"

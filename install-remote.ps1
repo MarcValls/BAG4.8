@@ -301,4 +301,10 @@ Remove-Item -Force $tempChecksum -ErrorAction SilentlyContinue
 if ($tempSignature) { Remove-Item -Force $tempSignature -ErrorAction SilentlyContinue }
 Remove-Item -Recurse -Force $tempExtract -ErrorAction SilentlyContinue
 
+foreach ($profilePath in @($PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost)) {
+    if ($profilePath -and (Test-Path -LiteralPath $profilePath)) {
+        . $profilePath
+    }
+}
+
 Write-Host "[install-remote] BAGO $version instalado en $InstallDir" -ForegroundColor Green

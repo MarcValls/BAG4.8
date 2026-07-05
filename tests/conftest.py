@@ -4,8 +4,11 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LOCAL_CHAT = REPO_ROOT / ".bago" / "chat"
-LOCAL_CORE = REPO_ROOT / ".bago" / "core"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from bago_core.resolver import add_piece_paths
+
 INSTALLED_MARKERS = (
     "AppData\\Local\\BAGO",
     "Program Files\\BAGO",
@@ -57,9 +60,7 @@ MODULE_NAMES = {
 
 
 def _ensure_local_paths() -> None:
-    for path in (str(LOCAL_CHAT), str(LOCAL_CORE), str(REPO_ROOT)):
-        if path not in sys.path:
-            sys.path.insert(0, path)
+    add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 
 def _is_bago_module(name: str, module: object) -> bool:

@@ -310,7 +310,7 @@ python bago_core\cli.py evidence --mode real --provider ollama-local --model "ll
 
 Contratos relacionados:
 
-- `docs\COMMUNITY.md`
+- `docs\contracts\bago_v4_governance_contract.md`
 - `docs\contracts\README.md`
 - `docs\contracts\bago_v4_runtime_contract.json`
 - `docs\contracts\bago_v4_repl_contract.md`

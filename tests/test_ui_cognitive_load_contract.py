@@ -9,22 +9,27 @@ UI_SRC = ROOT / "ui-react" / "src"
 
 
 class UiCognitiveLoadContractTests(unittest.TestCase):
-    def test_topbar_does_not_duplicate_module_destination_navigation(self) -> None:
-        topbar = (UI_SRC / "components" / "ManagerTopBar.jsx").read_text(encoding="utf-8")
-        rail = (UI_SRC / "components" / "ModuleRail.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("orchestrator.openModule(module.id)", topbar)
-        self.assertIn("orchestrator.openModule(module.id)", rail)
-        self.assertIn("Destino único", topbar)
+    def test_header_keeps_destination_navigation_out_of_the_chrome(self) -> None:
+        header = (UI_SRC / "layout" / "GlobalHeader.tsx").read_text(encoding="utf-8")
+        sidebar = (UI_SRC / "layout" / "MainSidebar.tsx").read_text(encoding="utf-8")
+        self.assertNotIn("onNavigate", header)
+        self.assertNotIn("SECTIONS", header)
+        self.assertIn("Navegación principal", sidebar)
+        self.assertIn("sidebar-item", sidebar)
+        self.assertIn("sectionLabels", header)
+        self.assertIn("SECTIONS", sidebar)
 
     def test_review_defines_required_cognitive_load_methods(self) -> None:
         review = (ROOT / "docs" / "UI_COGNITIVE_LOAD_REVIEW.md").read_text(encoding="utf-8")
         for phrase in [
+            "one canonical destination navigator",
             "Progressive disclosure",
             "Recognition over recall",
-            "Command Palette",
-            "Focus Mode",
-            "Node/Link Candidates",
-            "No duplicated visible destination navigation",
+            "focus",
+            "review",
+            "command palette",
+            "MainSidebar",
+            "GlobalHeader",
         ]:
             self.assertIn(phrase, review)
 

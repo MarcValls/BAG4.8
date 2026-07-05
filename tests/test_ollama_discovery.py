@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
-
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "providers"))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "chat"))
 
 from ollama_discovery import discover_ollama_model_names  # noqa: E402
 from ollama_local import OllamaLocalAdapter  # noqa: E402

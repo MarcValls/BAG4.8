@@ -17,8 +17,6 @@ import os
 import sys
 from pathlib import Path
 
-from bago_core.workspace_paths import workspace_root
-
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 for _stream in (sys.stdout, sys.stderr):
@@ -32,13 +30,12 @@ BAGO_ROOT = Path(__file__).resolve().parents[1]
 _repo_root = str(BAGO_ROOT)
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
-# Prefer .gabo/core/version.py when running from source; bago_core/version.py acts
-# as a fallback when installed as a wheel (see bago_core/version.py).
-_bago_core_dir = str(BAGO_ROOT / ".gabo" / "core")
-if Path(_bago_core_dir).exists():
-    sys.path.insert(0, _bago_core_dir)
-sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "chat"))
-sys.path.insert(0, str(BAGO_ROOT / ".gabo" / "providers"))
+# Prefer the source-tree version module when running from source; the package
+# version module acts as the installed fallback.
+from bago_core.resolver import add_piece_paths, resolve_piece_path  # noqa: E402
+from bago_core.workspace_paths import workspace_root  # noqa: E402
+
+add_piece_paths("core.package", "chat.package", "providers.package")
 
 _CREATED_VERSION = "4.0.0"
 
@@ -226,11 +223,13 @@ def cmd_install_role(args: argparse.Namespace) -> int:
 
 def cmd_profiles(args: argparse.Namespace) -> int:
     """Muestra el mapa estable de active/des/ign y el flujo recomendado."""
+    dev_root = workspace_root() / "dev"
+    launch_root = workspace_root() / "launch"
     print("BAGO profiles")
     print("----------------------------------------")
     print("stable : C:\\Program Files\\BAGO")
-    print("des    : C:\\Users\\AMTEC_Terminal_1º\\.gabo\\dev")
-    print("ign    : C:\\Users\\AMTEC_Terminal_1º\\.gabo\\launch")
+    print(f"des    : {dev_root}")
+    print(f"ign    : {launch_root}")
     print("")
     print("Flujo:")
     print("  bago install --profile des")
@@ -324,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
         completed = subprocess.run([sys.executable, str(runner), *argv[1:]], cwd=str(profile_root))
         return completed.returncode
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".gabo" / "core"))
+    add_piece_paths("core.package")
     from config_manager import ConfigManager
 
     install_root = Path(__file__).resolve().parents[1]

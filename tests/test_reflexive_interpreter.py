@@ -1,18 +1,10 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-CORE = REPO_ROOT / ".bago" / "core"
-CHAT = REPO_ROOT / ".bago" / "chat"
-for path in (str(CORE), str(CHAT)):
-    if path not in sys.path:
-        sys.path.insert(0, path)
 
 from reflexive_interpreter import analyze_question, format_reflexive_report, rules_contract_info, validate_rules_contract  # noqa: E402
 

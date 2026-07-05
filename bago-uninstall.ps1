@@ -41,5 +41,10 @@ if ($DryRun) {
     $argsList += "--dry-run"
 }
 
-python @argsList
-exit $LASTEXITCODE
+Push-Location $root
+try {
+    python @argsList
+    exit $LASTEXITCODE
+} finally {
+    Pop-Location
+}

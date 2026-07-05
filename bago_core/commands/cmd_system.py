@@ -6,22 +6,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-BAGO_ROOT = Path(__file__).resolve().parents[2]
+from bago_core.resolver import add_piece_paths, resolve_piece_path
 
-for _path in (
-    BAGO_ROOT / "bago_core",
-    BAGO_ROOT / ".gabo" / "core",
-    BAGO_ROOT / ".gabo" / "chat",
-    BAGO_ROOT / ".gabo" / "providers",
-    BAGO_ROOT / ".gabo" / "api",
-    BAGO_ROOT / ".gabo" / "tools",
-):
-    _path_s = str(_path)
-    if _path_s not in sys.path:
-        sys.path.insert(0, _path_s)
+BAGO_ROOT = Path(__file__).resolve().parents[2]
+add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 def cmd_engine(args: argparse.Namespace) -> int:
-    from bago_true_bridge import collect_status, render_status
+    from bago_core.bago_true_bridge import collect_status, render_status
 
     action = args.engine_action or "status"
     if action != "status":
@@ -32,7 +23,7 @@ def cmd_engine(args: argparse.Namespace) -> int:
     return 0
 
 def cmd_appdata(args: argparse.Namespace) -> int:
-    from bago_true_bridge import collect_status, render_status
+    from bago_core.bago_true_bridge import collect_status, render_status
 
     action = args.appdata_action or "status"
     if action != "status":
@@ -43,7 +34,7 @@ def cmd_appdata(args: argparse.Namespace) -> int:
     return 0
 
 def cmd_cmd_rl(args: argparse.Namespace) -> int:
-    from bago_true_bridge import collect_status, render_status
+    from bago_core.bago_true_bridge import collect_status, render_status
 
     action = args.cmd_rl_action or "status"
     if action != "status":
@@ -54,7 +45,7 @@ def cmd_cmd_rl(args: argparse.Namespace) -> int:
     return 0
 
 def cmd_rl(args: argparse.Namespace) -> int:
-    from rl_bridge import RLBridge, render_status
+    from bago_core.rl_bridge import RLBridge, render_status
 
     bridge = RLBridge(args.base_path, true_root=args.true_root or None)
     action = args.rl_action or "status"
@@ -82,13 +73,13 @@ def cmd_rl(args: argparse.Namespace) -> int:
         if train_action != "bc":
             print("Uso: bago rl train bc")
             return 1
-        from rl_policies import render_policy_report, train_bc_policy
+        from bago_core.rl_policies import render_policy_report, train_bc_policy
         report = train_bc_policy(args.base_path, args.n_actions, args.n_features)
         print(render_policy_report(report, "BAGO RL TRAIN BC"))
         return 0
 
     if action == "eval":
-        from rl_policies import eval_bc_policy, render_policy_report
+        from bago_core.rl_policies import eval_bc_policy, render_policy_report
         report = eval_bc_policy(args.base_path, args.n_features)
         print(render_policy_report(report, "BAGO RL EVAL"))
         return 0
@@ -109,7 +100,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
     requested_base = Path(getattr(args, "base_path", "") or ".").resolve()
     module_base = BAGO_ROOT.resolve()
     base = requested_base if _is_bago_root(requested_base) else module_base
-    bago_dir = base / ".gabo"
+    bago_dir = resolve_piece_path("workspace.state_root")
     checks: list[dict] = []
     fails = 0
 
@@ -127,7 +118,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     print("\nBAGO VALIDATE\n" + "-" * 40)
 
-    # -- 1. Syntax: compilar todos los .py en .gabo/ y bago_core/ --------------
+    # -- 1. Syntax: compilar todos los .py en el estado y en bago_core/ ---------
     py_errors: list[str] = []
     for search_root in [bago_dir, base / "bago_core"]:
         if not search_root.exists():
@@ -227,14 +218,14 @@ def cmd_validate(args: argparse.Namespace) -> int:
         cors_detail = "sin wildcard" if cors_ok else "wildcard CORS detectado"
     _check("cors_no_wildcard", cors_ok, cors_detail)
 
-    # -- 7. .gitignore excluye .gabo/state/ ------------------------------------
+    # -- 7. .gitignore excluye la carpeta de estado -----------------------------
     gitignore = base / ".gitignore"
     gitignore_ok = False
     gitignore_detail = ".gitignore no encontrado"
     if gitignore.exists():
         content = gitignore.read_text(encoding="utf-8")
         gitignore_ok = ".gabo/state/" in content or ".gabo/state" in content
-        gitignore_detail = "excluye .gabo/state/" if gitignore_ok else ".gabo/state/ no excluido"
+        gitignore_detail = "excluye la carpeta de estado" if gitignore_ok else "carpeta de estado no excluida"
     _check("state_excluded_from_vcs", gitignore_ok, gitignore_detail)
 
     # -- 8. Culpas abiertas -----------------------------------------------------
@@ -258,11 +249,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
     _check("no_open_culpas", culpas_ok, culpas_detail)
 
     # -- 8. Claims ledger: no hay claims fallados -------------------------------
-    claims_file = bago_dir / "state" / "evidence" / "claims.jsonl"
+    claims_file = base / "evidence" / "claims.jsonl"
     claims_ok = True
     claims_detail = "sin claims registrados"
     if claims_file.exists():
-        sys.path.insert(0, str(base / "bago_core"))
+        add_piece_paths("core.package")
         try:
             from claim_ledger import ClaimLedger
             ledger = ClaimLedger(base_path=str(base))
@@ -279,7 +270,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     # -- 9. Provider health (comportamiento original, ahora un check mas) -------
     print("  [->] provider_health (requiere providers activos):")
-    sys.path.insert(0, str(bago_dir / "core"))
+    add_piece_paths("core.package")
     try:
         from session_manager import SessionManager
         any_provider_ok = False

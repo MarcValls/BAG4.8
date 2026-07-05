@@ -45,7 +45,7 @@ def test_captar_preserves_boundaries_required_by_canon() -> None:
 
 
 def test_reflexive_implementation_references_captar_mapping() -> None:
-    doc = (ROOT / "docs" / "INTERPRETE_REFLEXIVO_IMPLEMENTATION.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "REFLEXIVE_INTERPRETER.md").read_text(encoding="utf-8")
 
     assert "Complemento operativo CAPTAR" in doc
     assert "docs/CAPTAR_INTERPRETATION_MAPPING.md" in doc

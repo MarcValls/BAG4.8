@@ -35,7 +35,6 @@ class ChatHelpExecTests(unittest.TestCase):
             )
 
     def test_help_mentions_all_registered_slash_commands(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         from commands import COMMAND_REGISTRY, execute
 
         help_text = execute("/help", object(), object())["message"]
@@ -43,10 +42,9 @@ class ChatHelpExecTests(unittest.TestCase):
             self.assertIn(f"/{name}", help_text, name)
         self.assertIn("bago exec /comando [args...]", help_text)
         self.assertIn("Modo no interactivo:", help_text)
-        self.assertIn("/project [analyze|status|init|link|seed]", help_text)
+        self.assertIn("/project [analyze|status|init|link|seed|sync]", help_text)
 
     def test_roadmap_command_exposes_three_iterations(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         from commands import execute
 
         result = execute("/roadmap", object(), object())
@@ -126,14 +124,12 @@ class ChatHelpExecTests(unittest.TestCase):
         self.assertEqual(captured["default_model"], "gpt-5.4-mini")
 
     def test_repl_uses_shared_menu_sections(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         import commands
         import repl
 
         self.assertIs(repl.MENU_SECTIONS, commands.MENU_SECTIONS)
 
     def test_repl_detects_directory_paths(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         from repl_utils import looks_like_directory_path
 
         with tempfile.TemporaryDirectory() as td:
@@ -142,7 +138,6 @@ class ChatHelpExecTests(unittest.TestCase):
         self.assertIsNone(looks_like_directory_path("hola"))
 
     def test_renderer_exposes_rc4_response_contract_line(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         import renderer
 
         line = renderer.response_contract_line()
@@ -151,7 +146,6 @@ class ChatHelpExecTests(unittest.TestCase):
         self.assertIn("estado/evidencia/cambio/validación/siguiente paso", line)
 
     def test_renderer_prints_contract_line_before_assistant_output(self) -> None:
-        sys.path.insert(0, str(REPO / ".bago" / "chat"))
         import renderer
 
         buf = io.StringIO()

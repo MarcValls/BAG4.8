@@ -56,31 +56,26 @@ from bago_core.evidence_report import (
     _simulated_mode_check,
     _validation_commands,
 )
+from bago_core.resolver import add_piece_paths, resolve_piece_path
 
-# The legacy evidence_bundle.py used to import `from commands import execute`
-# at the top of the file. That worked because launcher.py injected the
-# `.bago/chat/` directory *before* `bago_core/commands/` on sys.path, and the
-# file at `.bago/chat/commands.py` exports a top-level `execute(command, mgr, engine)`.
+# The legacy evidence bundle imported `from commands import execute` at the
+# top of the file. The resolver keeps that import shape working without
+# depending on a particular on-disk package layout.
 #
 # In the split world, the generator is imported lazily by evidence_cli and
 # evidence_bundle. By the time the import runs, `bago_core/commands` may
 # already be on sys.path. To keep the contract simple we resolve the REPL
 # executor up front and bind it under a private alias, then we set `commands`
-# in sys.modules to that REPL module so any `from commands import execute` in
-# the generator stack keeps resolving correctly.
+# in sys.modules so any `from commands import execute` in the generator stack
+# keeps resolving correctly.
 _BAGO_ROOT = Path(__file__).resolve().parents[1]
-for _p in (_BAGO_ROOT / ".bago" / "core", _BAGO_ROOT / ".bago" / "chat",
-           _BAGO_ROOT / ".bago" / "providers", _BAGO_ROOT / ".bago" / "api",
-           _BAGO_ROOT / ".bago" / "tools"):
-    _s = str(_p)
-    if _s not in sys.path:
-        sys.path.insert(0, _s)
+add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 # The REPL commands module (provides `execute`). Must be importable under the
 # name `commands` so `from commands import execute` keeps working.
 import importlib.util as _importlib_util  # noqa: E402
 
-_REPL_CMDS_PATH = _BAGO_ROOT / ".bago" / "chat" / "commands.py"
+_REPL_CMDS_PATH = resolve_piece_path("chat.commands")
 _spec = _importlib_util.spec_from_file_location("bago_repl_commands", _REPL_CMDS_PATH)
 if _spec is None or _spec.loader is None:
     raise RuntimeError(f"cannot load REPL commands from {_REPL_CMDS_PATH}")

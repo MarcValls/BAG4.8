@@ -32,7 +32,7 @@ $Copies = [ordered]@{
 }
 
 $DefaultCandidates = @(
-  'C:\Program Files\BAGO',
+  (Join-Path $env:ProgramFiles 'BAGO'),
   (Join-Path $env:LOCALAPPDATA 'BAGO')
 ) | Where-Object { $_ -and (Test-Path $_) }
 

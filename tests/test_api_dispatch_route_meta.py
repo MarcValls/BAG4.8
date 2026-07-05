@@ -9,12 +9,7 @@ Verifica:
 - handlers_routes.handle() ejecuta sin errores.
 - GET_ROUTES incluye /routes (registro actual, no se pierde).
 """
-import sys
 import unittest
-from pathlib import Path
-
-API_DIR = Path(__file__).resolve().parent.parent / ".bago" / "api"
-sys.path.insert(0, str(API_DIR))
 
 import api_dispatch
 import api_routes
@@ -28,9 +23,9 @@ class RouteMetaTests(unittest.TestCase):
         self.assertTrue(hasattr(api_dispatch, "POST_ROUTES"))
 
     def test_route_meta_size(self):
-        self.assertEqual(len(api_dispatch.ROUTE_META), 26)
+        self.assertEqual(len(api_dispatch.ROUTE_META), 30)
         methods = [m for m, _, _, _ in api_dispatch.ROUTE_META]
-        self.assertEqual(methods.count("GET"), 17)
+        self.assertEqual(methods.count("GET"), 21)
         self.assertEqual(methods.count("POST"), 9)
 
     def test_get_post_routes_match_meta(self):
@@ -62,12 +57,12 @@ class RouteMetaTests(unittest.TestCase):
 
     def test_api_routes_count(self):
         routes = api_routes.all_routes()
-        # 26 estaticas + 3 dinamicas = 29
-        self.assertEqual(len(routes), 29)
+        # 30 estaticas + 8 dinamicas = 38
+        self.assertEqual(len(routes), 38)
         static_count = sum(1 for r in routes if not r["pattern"])
-        self.assertEqual(static_count, 26)
+        self.assertEqual(static_count, 30)
         dyn_count = sum(1 for r in routes if r["pattern"])
-        self.assertEqual(dyn_count, 3)
+        self.assertEqual(dyn_count, 8)
 
     def test_api_routes_module_fn_consistent(self):
         # Cada (handler_module, handler_fn) declarado en ROUTE_META debe
@@ -120,7 +115,7 @@ class HandlerRoutesTests(unittest.TestCase):
         self.assertEqual(captured["status"], 200)
         j = captured["payload"]
         self.assertTrue(j["ok"])
-        self.assertEqual(j["count"], 29)
+        self.assertEqual(j["count"], 38)
         self.assertEqual(j["auth"], "X-Bago-Token")
         paths = [r["path"] for r in j["routes"]]
         self.assertIn("/routes", paths)

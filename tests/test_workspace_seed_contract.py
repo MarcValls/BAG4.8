@@ -17,7 +17,7 @@ class WorkspaceSeedContractTests(unittest.TestCase):
 
     def test_contract_mentions_required_seed_terms(self) -> None:
         text = CONTRACT.read_text(encoding="utf-8").lower()
-        for needle in ("workspace seed", ".gabo", "depth 9", "working set", "receipt"):
+        for needle in ("workspace seed", ".gabo", "depth 9", "working set", "receipt", "resolver_contract.json"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 
@@ -38,12 +38,14 @@ class WorkspaceSeedContractTests(unittest.TestCase):
             "deterministic_repeat",
             "incremental_refresh",
             "ultimo snapshot valido",
+            "resolver",
         ):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 
     def test_contract_index_links_seed_docs(self) -> None:
         text = INDEX.read_text(encoding="utf-8").lower()
+        self.assertIn("resolver_contract.json", text)
         self.assertIn("workspace_seed_contract.md", text)
         self.assertIn("workspace_seed_tests.md", text)
 

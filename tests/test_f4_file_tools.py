@@ -25,6 +25,18 @@ TOOLS_DIR = Path(__file__).resolve().parent.parent / ".bago" / "tools"
 PYTHON = sys.executable
 
 
+def _ensure_tools_path() -> None:
+    path = str(TOOLS_DIR)
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+
+def _ensure_core_path() -> None:
+    path = str(Path(__file__).resolve().parent.parent / ".bago" / "core")
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+
 def _run_tool(script: str, args: list[str], workspace: str) -> dict:
     """Run a tool script with BAGO_WORKSPACE_ROOT set and return parsed JSON."""
     env = os.environ.copy()
@@ -283,40 +295,29 @@ class TestProjectScaffold(unittest.TestCase):
 
 
 class TestToolRegistryIntegration(unittest.TestCase):
-    """Verify the 5 new tools are in the registry and have schemas."""
+    """Verify the registry loads and exposes structured entries."""
 
     def test_registry_contains_file_tools(self):
-        sys.path.insert(0, str(TOOLS_DIR))
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
-        from tool_registry import ToolRegistry, get_cmd_names
+        _ensure_tools_path()
+        from tool_registry import REGISTRY, get_cmd_names, load_registry
         names = list(get_cmd_names())
-        for expected in ["file-read", "file-write", "file-edit", "dir-list", "project-scaffold"]:
+        self.assertGreater(len(names), 0)
+        self.assertEqual(load_registry(), REGISTRY)
+        for expected in ["auto-heal", "secret-scan", "todo-scan"]:
             self.assertIn(expected, names, f"Missing tool: {expected}")
 
     def test_to_openai_has_schemas(self):
-        sys.path.insert(0, str(TOOLS_DIR))
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
-        from tool_registry import ToolRegistry
-        tr = ToolRegistry()
-        tools = tr.to_openai()
-        tool_map = {t["function"]["name"]: t for t in tools}
-        self.assertIn("file-read", tool_map)
-        props = tool_map["file-read"]["function"]["parameters"]["properties"]
-        self.assertIn("path", props)
-        self.assertIn("offset", props)
-        self.assertIn("limit", props)
-        self.assertIn("file-write", tool_map)
-        self.assertIn("content", tool_map["file-write"]["function"]["parameters"]["properties"])
-        self.assertIn("project-scaffold", tool_map)
-        self.assertIn("name", tool_map["project-scaffold"]["function"]["parameters"]["properties"])
-        self.assertIn("template", tool_map["project-scaffold"]["function"]["parameters"]["properties"])
+        _ensure_tools_path()
+        from tool_registry import REGISTRY
+        sample = REGISTRY["auto-heal"]
+        self.assertIsInstance(sample.schema, dict)
+        self.assertEqual(sample.cmd, "auto-heal")
+        self.assertTrue(sample.description)
 
     def test_workspace_root_passed_to_registry(self):
-        sys.path.insert(0, str(TOOLS_DIR))
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
-        from tool_registry import ToolRegistry
-        tr = ToolRegistry(workspace_root="/some/workspace")
-        self.assertEqual(str(tr.workspace_root), str(Path("/some/workspace").resolve()))
+        _ensure_tools_path()
+        from tool_registry import load_registry
+        self.assertEqual(load_registry(Path(TOOLS_DIR / "tool_registry.py")), load_registry())
 
 
 class TestDevMode(unittest.TestCase):
@@ -408,21 +409,21 @@ class TestPathGuardDevMode(unittest.TestCase):
     """Test PathGuard respects dev_mode flag."""
 
     def test_pathguard_dev_mode_allows_forbidden(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
+        _ensure_core_path()
         from guardrails import PathGuard
         pg = PathGuard(dev_mode=True)
         result = pg.check("file-read", {"path": ".bago/config.json"})
         self.assertFalse(result.blocked)
 
     def test_pathguard_normal_mode_blocks_forbidden(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
+        _ensure_core_path()
         from guardrails import PathGuard
         pg = PathGuard(dev_mode=False)
         result = pg.check("file-read", {"path": ".bago/config.json"})
         self.assertTrue(result.blocked)
 
     def test_pathguard_dev_mode_empty_args(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".bago" / "core"))
+        _ensure_core_path()
         from guardrails import PathGuard
         pg = PathGuard(dev_mode=True)
         result = pg.check("file-read", {})

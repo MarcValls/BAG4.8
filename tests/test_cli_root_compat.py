@@ -6,7 +6,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = (REPO / "release_version.txt").read_text(encoding="utf-8").strip()
-sys.path.insert(0, str(REPO))
 
 from bago_core.parsers import build_parser  # noqa: E402
 

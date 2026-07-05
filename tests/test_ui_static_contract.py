@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 UI_SRC = ROOT / "ui-react" / "src"
-ALLOWED_Z_INDEX = {1, 50, 100, 200, 300}
+ALLOWED_Z_INDEX = {30, 45, 50, 100}
 
 
 def hex_to_rgb(value: str) -> tuple[float, float, float]:
@@ -35,11 +35,11 @@ class UiStaticContractTests(unittest.TestCase):
         text = (UI_SRC / "styles.css").read_text(encoding="utf-8")
         return dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})", text))
 
-    def test_muted2_contrast_uses_actual_css_token(self) -> None:
+    def test_text_2_contrast_uses_actual_css_token(self) -> None:
         tokens = self.root_tokens()
-        for background in ["--panel", "--bg", "--panel2"]:
-            ratio = contrast_ratio(tokens["--muted2"], tokens[background])
-            self.assertGreaterEqual(ratio, 4.5, f"--muted2/{background} ratio={ratio:.2f}")
+        for background in ["--bg", "--bg-soft", "--surface", "--surface-2"]:
+            ratio = contrast_ratio(tokens["--text-2"], tokens[background])
+            self.assertGreaterEqual(ratio, 4.5, f"--text-2/{background} ratio={ratio:.2f}")
 
     def test_z_index_values_stay_on_declared_layers(self) -> None:
         found: list[tuple[Path, int]] = []

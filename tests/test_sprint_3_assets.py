@@ -57,17 +57,60 @@ class Sprint3AssetTests(unittest.TestCase):
         ]:
             self.assertTrue(path.exists(), str(path))
 
-        for doc in ["KERNEL_LOCKDOWN.md", "COMMAND_AUDIT.md"]:
-            text = (ROOT / "docs" / doc).read_text(encoding="utf-8")
-            self.assertIn("#", text, doc)
+        commands = (ROOT / "docs" / "COMMANDS.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO Commands", commands)
+        self.assertIn("AUTO-GENERATED", commands)
+
+        testing = (ROOT / "docs" / "TESTING.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO Testing", testing)
+        self.assertIn("Required Gates", testing)
+        self.assertIn("Optional Gates", testing)
+
+        security = (ROOT / "docs" / "SECURITY.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO Security", security)
+        self.assertIn("Command Policy", security)
+        self.assertIn("Interface Authority", security)
+        self.assertIn("RL Authority", security)
+        self.assertIn("Agents And Automation", security)
+        self.assertIn("Stop Rules", security)
+
+        mvp = (ROOT / "docs" / "MVP.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO MVP Boundary", mvp)
+        self.assertIn("Stable MVP", mvp)
+        self.assertIn("Outside The MVP", mvp)
+        self.assertIn("Product Rule", mvp)
+        self.assertIn("docs/CLAIMS.md", mvp)
+        self.assertIn("docs/SECURITY.md", mvp)
+
+        resolver = (ROOT / "docs" / "RESOLVER_ARCHITECTURE.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO Resolver Architecture", resolver)
+        self.assertIn("Live Authority", resolver)
+        self.assertIn("Responsibilities", resolver)
+        self.assertIn("docs/contracts/resolver_contract.json", resolver)
+        self.assertNotIn("## Goal", resolver)
+        self.assertNotIn("## Implementation Phases", resolver)
+
+        rl = (ROOT / "docs" / "RL_ENGINE.md").read_text(encoding="utf-8")
+        self.assertIn("# BAGO RL Engine", rl)
+        self.assertIn("Live Authority", rl)
+        self.assertIn("Current Contract", rl)
+        self.assertIn("shadow/off", rl)
+        self.assertIn("docs/SECURITY.md", rl)
+        self.assertNotIn("## Policy Layer", rl)
+        self.assertNotIn("## Authority Model", rl)
 
     def test_knowledge_examples_and_makefile(self) -> None:
         learned = (BAGO / "knowledge" / "learned_lessons.md").read_text(encoding="utf-8")
         self.assertIn("LL-001", learned)
         self.assertIn("CONTENIDO FUSIONADO DESDE RAÍZ", learned)
 
-        examples = [p for p in (ROOT / "examples").rglob("*") if p.is_file()]
-        self.assertGreaterEqual(len(examples), 71)
+        evidence = ROOT / "docs" / "evidence" / "ui_shell_current"
+        self.assertTrue((evidence / "report.md").exists())
+        self.assertTrue((evidence / "manifest.json").exists())
+
+        resolver_contract = ROOT / "docs" / "contracts" / "resolver_contract.json"
+        self.assertTrue(resolver_contract.exists())
+        self.assertIn("resolver", resolver_contract.read_text(encoding="utf-8"))
 
         # bago_wizard.py and BAGO_PAUSE.md were removed during 2026-Q2 cleanup.
         self.assertFalse((ROOT / "bago_wizard.py").exists(),
@@ -81,4 +124,3 @@ class Sprint3AssetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

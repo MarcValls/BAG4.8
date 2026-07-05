@@ -10,9 +10,6 @@ from types import SimpleNamespace
 
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO))
-sys.path.insert(0, str(REPO / ".bago" / "tools"))
-sys.path.insert(0, str(REPO / ".bago" / "chat"))
 
 import project_memory  # noqa: E402
 import commands  # noqa: E402

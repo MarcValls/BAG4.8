@@ -78,6 +78,7 @@ function action(command_id, label, emphasis = 'normal') {
 }
 
 function center(id, status = 'confirmed') {
+  const entityPath = path.join(ROOT, '.gabo', id);
   return {
     center_id: id,
     state_revision: 'matrix-1',
@@ -85,7 +86,7 @@ function center(id, status = 'confirmed') {
     summary: `${id} operativo con datos sinteticos de captura`,
     active_entity: {
       id,
-      path: `C:\\Users\\AMTEC_Terminal_1º\\BAG4.8\\.gabo\\${id}`,
+      path: entityPath,
       authority: 'backend-simulado-playwright',
     },
     metrics: [
@@ -141,11 +142,11 @@ function sampleSnapshot() {
     connection: { status: 'confirmed', backend_version: 'playwright-matrix', bridge: 'route-intercept' },
     authorities: {
       framework_version: '4.8',
-      framework_root: 'C:\\Users\\AMTEC_Terminal_1º\\BAG4.8',
-      project_root: 'C:\\Users\\AMTEC_Terminal_1º\\BAG4.8',
+      framework_root: ROOT,
+      project_root: ROOT,
       workspace_id: 'BAGO-MATRIX',
-      workspace_root: 'C:\\Users\\AMTEC_Terminal_1º\\BAG4.8\\.gabo',
-      workspace_scope_root: 'C:\\Users\\AMTEC_Terminal_1º\\BAG4.8',
+      workspace_root: path.join(ROOT, '.gabo'),
+      workspace_scope_root: ROOT,
       session_id: 'session-matrix',
       context_revision: 'matrix-1',
     },

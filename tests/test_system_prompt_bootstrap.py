@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / ".bago" / "chat"))
 
 import system_prompt as system_prompt_module  # noqa: E402
 

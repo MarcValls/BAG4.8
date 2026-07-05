@@ -6,8 +6,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _BAGO_CORE = REPO_ROOT / ".bago" / "core"
-if str(_BAGO_CORE) not in sys.path:
-    sys.path.insert(0, str(_BAGO_CORE))
 
 
 def _make_manager(tmp_path: str, workspace: str):
@@ -68,7 +66,7 @@ def test_receipt_validator_certifies_and_detects_mutation():
             validator = ContextReceiptValidator()
             report = validator.validate(
                 receipt,
-                expected_workspace=workspace,
+                expected_workspace=str(mgr.base_path),
                 expected_workspace_state_root=str(Path(workspace) / ".gabo"),
                 expected_provider="validator-provider",
                 expected_model="validator-model",
@@ -77,7 +75,7 @@ def test_receipt_validator_certifies_and_detects_mutation():
                 expected_session_summary={
                     "session_id": mgr.session_id,
                     "workspace_state_root": str(Path(workspace) / ".gabo"),
-                    "authorized_root": workspace,
+                    "authorized_root": str(mgr.base_path),
                     "provider": "validator-provider",
                     "model": "validator-model",
                     "bago_mode": mgr.bago_mode,

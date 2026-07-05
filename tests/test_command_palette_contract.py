@@ -10,18 +10,22 @@ UI_SRC = ROOT / "ui-react" / "src"
 
 class CommandPaletteContractTests(unittest.TestCase):
     def test_palette_surface_exists(self) -> None:
-        palette = (UI_SRC / "components" / "CommandPalette.jsx").read_text(encoding="utf-8")
-        self.assertTrue((UI_SRC / "components" / "CommandPalette.jsx").exists())
-        self.assertIn("Ctrl+K", palette)
-        self.assertIn("Paleta de comandos", palette)
+        app = (UI_SRC / "app" / "ControlPlane.tsx").read_text(encoding="utf-8")
+        opening = (UI_SRC / "features" / "opening" / "OpeningScreen.tsx").read_text(encoding="utf-8")
+        self.assertIn("command-palette-backdrop", app)
+        self.assertIn("Comandos rápidos", app)
+        self.assertIn("Ctrl+K", opening)
+        self.assertIn("WorkspacePickerDialog", app)
 
     def test_app_wires_palette_and_shortcut(self) -> None:
-        app = (UI_SRC / "App.jsx").read_text(encoding="utf-8")
-        topbar = (UI_SRC / "components" / "ManagerTopBar.jsx").read_text(encoding="utf-8")
-        self.assertIn("paletteOpen", app)
-        self.assertIn("setPaletteOpen", app)
-        self.assertIn("onOpenPalette", topbar)
-        self.assertIn("Buscar", topbar)
+        app = (UI_SRC / "app" / "ControlPlane.tsx").read_text(encoding="utf-8")
+        header = (UI_SRC / "layout" / "GlobalHeader.tsx").read_text(encoding="utf-8")
+        self.assertIn("commandPaletteOpen", app)
+        self.assertIn("setAndPersistUiState({ commandPaletteOpen: true })", app)
+        self.assertIn("onOpenPalette", header)
+        self.assertIn("Buscar", header)
+        self.assertIn("focus", app)
+        self.assertIn("review", app)
 
 
 if __name__ == "__main__":

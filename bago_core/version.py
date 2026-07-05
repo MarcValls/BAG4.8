@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""bago_core/version.py — Version shim for wheel entry point.
+"""bago_core/version.py -- Version shim for the entry point.
 
-When BAGO runs from source, launcher.py inserts .bago/core into sys.path and
+When BAGO runs from source, launcher.py adds the core package to sys.path and
 imports version.CURRENT from there. When BAGO runs as an installed wheel, that
 path is unavailable; this shim provides the same interface.
 """

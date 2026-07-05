@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "core"))
-sys.path.insert(0, str(REPO_ROOT / ".bago" / "chat"))
 
 import repl_menu  # noqa: E402
 import session_manager  # noqa: E402

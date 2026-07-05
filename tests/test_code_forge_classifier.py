@@ -113,12 +113,6 @@ Corrección obligatoria:
         self.assertIn("pasted_document_detected", result.reasons)
 
     def test_session_manager_blocks_before_adapter(self) -> None:
-        import sys
-
-        core = Path(__file__).resolve().parents[1] / ".bago" / "core"
-        if str(core) not in sys.path:
-            sys.path.insert(0, str(core))
-
         from session_manager import SessionManager
 
         with tempfile.TemporaryDirectory() as td:
@@ -138,12 +132,6 @@ Corrección obligatoria:
                 mgr.close()
 
     def test_session_manager_ignores_pasted_documents(self) -> None:
-        import sys
-
-        core = Path(__file__).resolve().parents[1] / ".bago" / "core"
-        if str(core) not in sys.path:
-            sys.path.insert(0, str(core))
-
         from session_manager import SessionManager
 
         text = """
@@ -205,12 +193,7 @@ Evidencia:
                 mgr.close()
 
     def test_session_manager_status_exposes_code_task_contract(self) -> None:
-        import sys
         from types import SimpleNamespace
-
-        core = Path(__file__).resolve().parents[1] / ".bago" / "core"
-        if str(core) not in sys.path:
-            sys.path.insert(0, str(core))
 
         from session_manager import SessionManager
 

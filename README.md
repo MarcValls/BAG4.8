@@ -16,26 +16,22 @@ Most AI tools bind context to one provider or model. BAGO separates session stat
 
 The stable MVP is intentionally small:
 
-| Capability | Status | Proof |
+| Surface | Status | Canonical docs |
 |---|---|---|
-| CLI | Working | `python bago_core\cli.py validate` |
-| Persistent session | Working | `python test_e2e.py` |
-| Provider/model switch | Working | `python test_e2e.py` |
-| Ollama local startup | Working when Ollama is installed | `python bago_core\cli.py llm start --provider ollama-local --model llama3.2:3b --dry-run` |
-| Local API | Working, localhost-first | `python .bago\api\bridge.py --test` |
-| Evidence bundles | Working | `python bago_core\cli.py evidence --test` |
-| Security validation | Working | `python test_security_release.py` |
-| React UI | Optional surface | `cd ui-react; npm run build` |
+| Core runtime | Working | `docs/CLAIMS.md`, `docs/TESTING.md` |
+| Install and platform support | Working | `docs/MVP.md`, `docs/SUPPORT_MATRIX.md`, `docs/CLAIMS.md` |
+| Security and API posture | Working | `docs/SECURITY.md`, `docs/TESTING.md`, `docs/CLAIMS.md` |
+| UI | Optional surface | `docs/UI_CANONICAL_CONTRACT.md`, `docs/CLAIMS.md` |
 
 Post-MVP or experimental:
 
-| Capability | Status | Boundary |
+| Surface | Status | Canonical docs |
 |---|---|---|
-| RL policy layer | Experimental | shadow/off by default, no execution authority |
-| Agents and autopilot | Experimental | must not be claimed as stable product behavior |
-| C++ runtime | Experimental | not required for install, release, or validation |
-| Cloud multiprovider completeness | Partial | depends on configured credentials and provider health |
-| Advanced knowledge/embedding store | Partial | must remain separate from the MVP claim set |
+| RL policy layer | Experimental | `docs/MVP.md`, `docs/SECURITY.md` |
+| Agents and autopilot | Experimental | `docs/MVP.md`, `docs/SECURITY.md` |
+| C++ runtime | Experimental | `docs/MVP.md` |
+| Cloud multiprovider completeness | Partial | `docs/MVP.md`, `docs/SUPPORT_MATRIX.md` |
+| Advanced knowledge/embedding store | Partial | `docs/MVP.md`, `docs/MODULES.md` |
 
 ## Install
 
@@ -149,26 +145,11 @@ Break-glass (owner only, emergency):
 
 ## Security
 
-BAGO must remain safe by default:
-
-- API binds to `127.0.0.1` by default.
-- Non-localhost API exposure requires a token.
-- CORS must never use wildcard origin.
-- Credentials must not enter Git, release ZIPs, UI bundles, or evidence samples.
-- Tool execution is reject-by-default unless explicitly allowed.
-- RL, agents, and automation remain suggestion/shadow surfaces unless explicitly authorized.
+See `docs/SECURITY.md` for the security posture and hard stops.
 
 ## Evidence
 
-Every public claim must have at least one validation path:
-
-- command,
-- automated test,
-- evidence bundle,
-- functional contract,
-- or minimal demo.
-
-See [`docs/CLAIMS.md`](docs/CLAIMS.md) for the claim-to-evidence matrix.
+See [`docs/CLAIMS.md`](docs/CLAIMS.md) for the claim-to-evidence matrix and [`docs/TESTING.md`](docs/TESTING.md) for executable gates.
 
 ## Roadmap
 
@@ -177,8 +158,7 @@ The near-term order is:
 1. keep the MVP frozen,
 2. keep version and Python requirements unified,
 3. run the clean-machine gate before releases,
-4. require evidence for every public claim,
-5. keep partial/experimental modules out of stable product claims.
+4. keep partial/experimental modules out of stable product claims.
 
 See [`docs/MVP.md`](docs/MVP.md), [`docs/MODULES.md`](docs/MODULES.md), and [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md).
 
@@ -218,4 +198,4 @@ Future licensing may change, but the current release line remains proprietary.
 - [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) - operating system support.
 - [`docs/SECURITY.md`](docs/SECURITY.md) - security defaults and gates.
 - [`docs/TESTING.md`](docs/TESTING.md) - validation commands.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) - distribution roadmap.
+- [`docs/archive/roadmap/ROADMAP.legacy.md`](docs/archive/roadmap/ROADMAP.legacy.md) - archived distribution roadmap.
