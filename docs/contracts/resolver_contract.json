@@ -23,13 +23,13 @@
       "kind": "root",
       "loader": "path",
       "candidates": [
-        "~/.gabo",
-        "~/.bago"
+        "~/.bago",
+        "~/.gabo"
       ],
       "aliases": [
         "workspace.root",
-        ".gabo",
-        ".bago"
+        ".bago",
+        ".gabo"
       ]
     },
     {
@@ -37,7 +37,6 @@
       "kind": "package",
       "loader": "path",
       "candidates": [
-        ".gabo/core",
         ".bago/core",
         "bago_core"
       ],
@@ -50,7 +49,6 @@
       "kind": "package",
       "loader": "path",
       "candidates": [
-        ".gabo/chat",
         ".bago/chat"
       ],
       "aliases": [
@@ -62,7 +60,6 @@
       "kind": "package",
       "loader": "path",
       "candidates": [
-        ".gabo/providers",
         ".bago/providers"
       ],
       "aliases": [
@@ -74,7 +71,6 @@
       "kind": "package",
       "loader": "path",
       "candidates": [
-        ".gabo/api",
         ".bago/api"
       ],
       "aliases": [
@@ -86,7 +82,6 @@
       "kind": "package",
       "loader": "path",
       "candidates": [
-        ".gabo/tools",
         ".bago/tools"
       ],
       "aliases": [
@@ -98,7 +93,6 @@
       "kind": "module",
       "loader": "module_path",
       "candidates": [
-        ".gabo/chat/commands.py",
         ".bago/chat/commands.py"
       ],
       "aliases": [

@@ -21,11 +21,11 @@ from bago_core.versioning import read_release_version
 
 INCLUDE_FILES = [
     ".gitignore",
-    ".gabo/seed.py",
-    ".gabo/tools.manifest.json",
     ".bago/core/context_store.py",
     ".bago/core/session_manager.py",
     ".bago/tools/orchestrator_v4.py",
+    ".bago/seed.py",
+    ".bago/tools.manifest.json",
     "ir_types.py",
     "protocol.py",
     "registry.py",
@@ -64,12 +64,12 @@ INCLUDE_DIRS = [
     "bago_core",
     "electron",
     "manager",
-    ".gabo/core",
-    ".gabo/chat",
-    ".gabo/knowledge",
-    ".gabo/providers",
-    ".gabo/api",
-    ".gabo/tools",
+    ".bago/api",
+    ".bago/chat",
+    ".bago/core",
+    ".bago/knowledge",
+    ".bago/providers",
+    ".bago/tools",
     "docs",
     "scripts",
     "tests",
@@ -106,7 +106,6 @@ EXCLUDED_PREFIXES = [
     ".gabo/logs",
     ".gabo/cache",
     ".gabo/launch",
-    ".gabo/tools/.gabo",
     "PLAN_VERTICE",
     "release",
     "dist",
@@ -140,6 +139,8 @@ ALLOWED_LEGACY_PATHS = {
     ".bago/core/context_store.py",
     ".bago/core/session_manager.py",
     ".bago/tools/orchestrator_v4.py",
+    ".bago/seed.py",
+    ".bago/tools.manifest.json",
 }
 
 
@@ -400,11 +401,12 @@ def _run_tests() -> int:
             required_names = {
                 "bago_core/translators/__init__.py",
                 "install-assistant.ps1",
-                ".gabo/core/session_manager.py",
-                ".gabo/chat/commands.py",
-                ".gabo/api/bridge.py",
-                ".gabo/providers/ollama_local.py",
-                ".gabo/tools/tool_registry.py",
+                ".bago/core/session_manager.py",
+                ".bago/chat/commands.py",
+                ".bago/api/bridge.py",
+                ".bago/providers/ollama_local.py",
+                ".bago/tools/orchestrator_v4.py",
+                ".bago/tools/tool_registry.py",
                 "docs/contracts/bago_v4_runtime_contract.json",
                 "docs/contracts/bago_v4_repl_contract.md",
                 "docs/contracts/bago_v4_evidence_contract.md",
@@ -468,4 +470,3 @@ if __name__ == "__main__":
     if "--test" in sys.argv:
         raise SystemExit(_run_tests())
     raise SystemExit(main())
-

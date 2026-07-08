@@ -8,6 +8,12 @@
 .bago/config.json
 .bago/session-credentials.json
 install_config.json
+.gabo/state/
+.gabo/logs/
+.gabo/cache/
+.gabo/launch/
+.gabo/tools/.gabo/
+.gabo/backups/
 
 # ── Bases de datos ──────────────────────────────────────────────────────────────
 *.db
@@ -54,8 +60,6 @@ env/
 *.bak
 *.py.new
 .staging/
-.bago/
-.gabo/
 bago_core/parsers_legacy_*.py
 tools/_diff_*.py
 dist/
@@ -76,9 +80,6 @@ SIGUIENTE.txt
 
 # 2026-Q2 cleanup: archive holds historical artifacts not part of the active repo
 archive/
-
-# .gabo backups are local snapshots, not source code
-.gabo/backups/
 
 # Debug captures from manual bridge/CLI testing
 chat_body.json
