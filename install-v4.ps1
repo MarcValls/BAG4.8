@@ -3,9 +3,9 @@ param(
     [string]$SourceRoot = "",
     [string]$PackageZip = "",
     [string]$Profile = "",
-    [string]$InstallDir = "C:\Program Files\BAGO",
-    [string]$BackupRoot = "$env:ProgramData\BAGO\backups",
-    [string]$UserStateDir = "$env:ProgramData\BAGO\user",
+    [string]$InstallDir = "",
+    [string]$BackupRoot = "",
+    [string]$UserStateDir = "",
     [string]$Mode = "",
 [switch]$SkipTests,
 [switch]$RepairOnly,
@@ -21,6 +21,28 @@ $ErrorActionPreference = "Stop"
 function Get-FullPath {
     param([Parameter(Mandatory = $true)][string]$Path)
     return [System.IO.Path]::GetFullPath($Path)
+}
+
+function Get-DefaultDataRoot {
+    [string]$override = [System.Environment]::GetEnvironmentVariable("BAGO_DATA_ROOT")
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return (Get-FullPath $override) }
+    [string]$legacy = [System.Environment]::GetEnvironmentVariable("BAGO_USER_ROOT")
+    if (-not [string]::IsNullOrWhiteSpace($legacy)) { return (Get-FullPath $legacy) }
+    [string]$programData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::CommonApplicationData)
+    if ([string]::IsNullOrWhiteSpace($programData)) { $programData = [System.Environment]::GetEnvironmentVariable("ProgramData") }
+    if ([string]::IsNullOrWhiteSpace($programData)) { $programData = [System.IO.Path]::GetTempPath() }
+    return (Join-Path $programData "BAGO")
+}
+
+function Get-DefaultUserRoot {
+    [string]$override = [System.Environment]::GetEnvironmentVariable("BAGO_USER_ROOT")
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return (Get-FullPath $override) }
+    [string]$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+    if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = [System.Environment]::GetEnvironmentVariable("LOCALAPPDATA") }
+    if (-not [string]::IsNullOrWhiteSpace($localAppData)) { return (Join-Path $localAppData "BAGO") }
+    [string]$userProfile = [System.Environment]::GetEnvironmentVariable("USERPROFILE")
+    if (-not [string]::IsNullOrWhiteSpace($userProfile)) { return (Join-Path $userProfile ".bago") }
+    return (Join-Path ([System.IO.Path]::GetTempPath()) "BAGO")
 }
 
 function Get-RelativePathCompat {
@@ -142,8 +164,9 @@ function Normalize-ProfileName {
 
 function Get-ProfileInstallDir {
     param([Parameter(Mandatory = $true)][string]$ProfileName)
-    [string]$programFilesRoot = [System.Environment]::GetEnvironmentVariable("ProgramFiles")
-    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = "C:\Program Files" }
+    [string]$programFilesRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.Environment]::GetEnvironmentVariable("ProgramFiles") }
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.IO.Path]::GetTempPath() }
     switch ($ProfileName) {
         "stable" { return (Join-Path $programFilesRoot "BAGO") }
         "des" { return (Join-Path (Join-Path $HOME ".bago") "dev") }
@@ -153,9 +176,7 @@ function Get-ProfileInstallDir {
 }
 
 function Get-ProfileDataRoot {
-    $programData = $env:ProgramData
-    if (-not $programData) { $programData = "C:\ProgramData" }
-    return (Join-Path $programData "BAGO")
+    return (Get-DefaultDataRoot)
 }
 
 function Get-ProfileBackupRoot {
@@ -180,6 +201,39 @@ if ($Profile) {
     if (-not $PSBoundParameters.ContainsKey("UserStateDir")) {
         $UserStateDir = Get-ProfileUserStateDir -ProfileName $profileName
     }
+}
+
+if (-not $PSBoundParameters.ContainsKey("BackupRoot") -or [string]::IsNullOrWhiteSpace($BackupRoot)) {
+    if ($profileName) {
+        $BackupRoot = Get-ProfileBackupRoot -ProfileName $profileName
+    } else {
+        $BackupRoot = (Join-Path (Get-DefaultDataRoot) "backups")
+    }
+}
+
+if (-not $PSBoundParameters.ContainsKey("UserStateDir") -or [string]::IsNullOrWhiteSpace($UserStateDir)) {
+    if ($profileName) {
+        $UserStateDir = Get-ProfileUserStateDir -ProfileName $profileName
+    } else {
+        $UserStateDir = (Join-Path (Get-DefaultDataRoot) "user")
+    }
+}
+
+if (-not $PSBoundParameters.ContainsKey("InstallDir") -or [string]::IsNullOrWhiteSpace($InstallDir)) {
+    if ($profileName -eq "stable") {
+        $InstallDir = Get-ProfileInstallDir -ProfileName $profileName
+    } else {
+        $InstallDir = Get-DefaultInstallDir
+    }
+}
+
+function Get-DefaultInstallDir {
+    [string]$override = [System.Environment]::GetEnvironmentVariable("BAGO_INSTALL_DIR")
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return (Get-FullPath $override) }
+    [string]$programFilesRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.Environment]::GetEnvironmentVariable("ProgramFiles") }
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.IO.Path]::GetTempPath() }
+    return (Join-Path $programFilesRoot "BAGO")
 }
 
 if (-not $ElevatedChild -and -not (Test-IsAdministrator)) {
@@ -455,17 +509,32 @@ function New-BagoProfileBootstrap {
 # BEGIN BAGO MANAGED BLOCK
 function global:bago {
     param([Parameter(ValueFromRemainingArguments = $true)][object[]]$Args)
-    $selectionFiles = @(
-        Join-Path $env:LOCALAPPDATA 'BAGO\install_selection.json'
-        Join-Path $env:USERPROFILE '.bago\install_selection.json'
-    ) | Where-Object { Test-Path -LiteralPath $_ }
-    $candidateRoots = @(
-        '__INSTALL_ROOT__',
-        (Join-Path $env:LOCALAPPDATA 'BAGO\active'),
-        (Join-Path $env:LOCALAPPDATA 'BAGO\launch'),
-        (Join-Path $env:USERPROFILE '.bago\active'),
-        (Join-Path $env:USERPROFILE '.bago\launch')
-    ) | Where-Object { $_ }
+    function Get-BagoUserRoot {
+        if ($env:BAGO_USER_ROOT) { return $env:BAGO_USER_ROOT }
+        if ($env:BAGO_LEGACY_USER_ROOT) { return $env:BAGO_LEGACY_USER_ROOT }
+        if ($env:LOCALAPPDATA) { return (Join-Path $env:LOCALAPPDATA 'BAGO') }
+        if ($env:USERPROFILE) { return (Join-Path $env:USERPROFILE '.bago') }
+        return ''
+    }
+    $userRoot = Get-BagoUserRoot
+    $selectionFiles = @()
+    if ($userRoot) { $selectionFiles += (Join-Path $userRoot 'install_selection.json') }
+    if ($env:LOCALAPPDATA) { $selectionFiles += (Join-Path $env:LOCALAPPDATA 'BAGO\install_selection.json') }
+    if ($env:USERPROFILE) { $selectionFiles += (Join-Path $env:USERPROFILE '.bago\install_selection.json') }
+    $selectionFiles = $selectionFiles | Where-Object { Test-Path -LiteralPath $_ }
+    $candidateRoots = @('__INSTALL_ROOT__')
+    if ($userRoot) {
+        $candidateRoots += (Join-Path $userRoot 'active')
+        $candidateRoots += (Join-Path $userRoot 'launch')
+    }
+    if ($env:LOCALAPPDATA) {
+        $candidateRoots += (Join-Path $env:LOCALAPPDATA 'BAGO\active')
+        $candidateRoots += (Join-Path $env:LOCALAPPDATA 'BAGO\launch')
+    }
+    if ($env:USERPROFILE) {
+        $candidateRoots += (Join-Path $env:USERPROFILE '.bago\active')
+        $candidateRoots += (Join-Path $env:USERPROFILE '.bago\launch')
+    }
     $root = ''
     foreach ($file in $selectionFiles) {
         try {
@@ -605,6 +674,11 @@ function Read-UrlOrDefault {
         }
         Write-Host "La URL debe empezar por http:// o https://."
     }
+}
+
+function Test-CommandAvailable {
+    param([Parameter(Mandatory = $true)][string]$Name)
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
 function Invoke-GhDeviceLogin {
@@ -927,6 +1001,11 @@ if ($installerMode -eq "Express") {
     }
 }
 
+if ($providerConfigs["ollama-local"].enabled -and -not (Test-CommandAvailable "ollama")) {
+    Write-Warning "Ollama no está disponible en esta máquina; se desactiva ollama-local para completar la instalación."
+    $providerConfigs["ollama-local"].enabled = $false
+}
+
 $secretStorePayload = [ordered]@{}
 if ($providerConfigs["codex"].enabled -and $providerConfigs["codex"].api_key) {
     $secretStorePayload["codex"] = @{ OPENAI_API_KEY = $providerConfigs["codex"].api_key }
@@ -990,6 +1069,26 @@ $installConfigPath = Join-Path $installFull "install_config.json"
 $runtimeConfigPath = Join-Path $installFull ".bago\config.json"
 Write-JsonFile -Path $installConfigPath -Value $installConfig
 Write-JsonFile -Path $runtimeConfigPath -Value $runtimeConfig
+
+$defaultUserRoot = Get-DefaultUserRoot
+New-Item -ItemType Directory -Path $defaultUserRoot -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $defaultUserRoot "state") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $defaultUserRoot "cache") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $defaultUserRoot "backups") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $defaultUserRoot "runtime") -Force | Out-Null
+$installSelection = [ordered]@{
+    version = 1
+    updated_at = (Get-Date).ToUniversalTime().ToString("o")
+    roles = [ordered]@{
+        active = [ordered]@{
+            path = $installFull
+            label = "Copia activa"
+            updated_at = (Get-Date).ToUniversalTime().ToString("o")
+        }
+    }
+}
+Write-JsonFile -Path (Join-Path $defaultUserRoot "install_selection.json") -Value $installSelection
+
 if ($credentialStoreCfg.mode -ne "session") {
     if (-not $credentialStoreCfg.path) { throw "La persistencia elegida requiere una ruta de almacenamiento." }
     Write-EncryptedStore -Path $credentialStoreCfg.path -Payload $secretStorePayload

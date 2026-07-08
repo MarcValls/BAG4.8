@@ -2,6 +2,8 @@ import type {
   BackendCommandResult,
   BackendHistory,
   BackendMenu,
+  BackendRouterList,
+  BackendRouterPolicy,
   BackendProviders,
   BackendRoutes,
   BackendSession,
@@ -9,7 +11,7 @@ import type {
   UiBootData
 } from '@/contracts/backend';
 
-const FALLBACK_BASE = 'http://127.0.0.1:8080';
+const FALLBACK_BASE = '';
 const STORAGE_BASE = 'bago.ui.apiBase';
 const STORAGE_TOKEN = 'bago.ui.apiToken';
 
@@ -21,17 +23,13 @@ export function resolveDefaultApiBase(): string {
   if (envBase && envBase.trim()) {
     return envBase.trim().replace(/\/+$/, '');
   }
-  const host = window.location.hostname;
-  const port = window.location.port;
   if (window.location.protocol === 'file:') {
     return FALLBACK_BASE;
   }
-  if (host === '127.0.0.1' || host === 'localhost') {
-    if (port && port !== '8080' && port !== '80' && port !== '443') {
-      return FALLBACK_BASE;
-    }
+  if (window.location.origin) {
+    return window.location.origin.replace(/\/+$/, '');
   }
-  return window.location.origin.replace(/\/+$/, '');
+  return FALLBACK_BASE;
 }
 
 export function readStoredApiBase(): string {
@@ -100,15 +98,24 @@ export class BagoClient {
     return `${this.apiBase}/api/v1${clean}`;
   }
 
-  async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  async request<T = unknown>(path: string, init: RequestInit = {}, timeoutMs?: number): Promise<T> {
     const headers = new Headers(init.headers || {});
     for (const [key, value] of Object.entries(this.headers() as Record<string, string>)) {
       headers.set(key, value);
     }
-    const response = await fetch(this.url(path), {
-      ...init,
-      headers
-    });
+    const effectiveTimeout = timeoutMs ?? 30_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), effectiveTimeout);
+    let response: Response;
+    try {
+      response = await fetch(this.url(path), {
+        ...init,
+        headers,
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!response.ok) {
       throw new BagoHttpError(response.status, `HTTP ${response.status} ${response.statusText}`);
     }
@@ -120,17 +127,7 @@ export class BagoClient {
   }
 
   async bootstrap(): Promise<UiBootData> {
-    try {
-      const modern = await this.request<UiBootData>('/api/v1/ui/bootstrap', { method: 'GET' });
-      if (modern) {
-        return modern;
-      }
-    } catch (error) {
-      if (!shouldFallbackToLegacy(error)) {
-        throw error;
-      }
-    }
-    const [status, session, providers, menu, routes, history, files, evidence, jobs, schedule] = await Promise.all([
+    const [status, session, providers, menu, routes, history, files, evidence, jobs, schedule, routerList, routerPolicy] = await Promise.all([
       this.getStatus().catch(() => undefined),
       this.getSession().catch(() => undefined),
       this.getProviders().catch(() => undefined),
@@ -140,9 +137,11 @@ export class BagoClient {
       this.listFiles().catch(() => undefined),
       this.getEvidenceLatest().catch(() => undefined),
       this.listJobs().catch(() => undefined),
-      this.listSchedule().catch(() => undefined)
+      this.listSchedule().catch(() => undefined),
+      this.getRouterList().catch(() => undefined),
+      this.getRouterPolicy().catch(() => undefined)
     ]);
-    return { status, session, providers, menu, routes, history, files, evidence, jobs, schedule };
+    return { status, session, providers, menu, routes, history, files, evidence, jobs, schedule, router_list: routerList, router_policy: routerPolicy };
   }
 
   async bootstrapModern(): Promise<UiBootData> {
@@ -171,6 +170,46 @@ export class BagoClient {
 
   getRoutes(): Promise<BackendRoutes> {
     return this.request<BackendRoutes>('/routes', { method: 'GET' });
+  }
+
+  getRouterList(refresh = false): Promise<BackendRouterList> {
+    return this.request<BackendRouterList>(refresh ? '/router/list?refresh=1' : '/router/list', { method: 'GET' });
+  }
+
+  getRouterPolicy(): Promise<BackendRouterPolicy> {
+    return this.request<BackendRouterPolicy>('/router/policy', { method: 'GET' });
+  }
+
+  toggleRouter(key: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/router/toggle/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      body: JSON.stringify({ channel: 'ui-react', surface: 'ui-react' })
+    });
+  }
+
+  setRouterAuto(enabled: boolean): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/router/auto', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, channel: 'ui-react', surface: 'ui-react' })
+    });
+  }
+
+  getSessionModel(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/router/session-model', { method: 'GET' });
+  }
+
+  setSessionModel(modelKey: string | null): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/router/session-model', {
+      method: 'POST',
+      body: JSON.stringify({ model: modelKey, channel: 'ui-react', surface: 'ui-react' })
+    });
+  }
+
+  configureProvider(provider: string, config: { enabled?: boolean; base_url?: string; api_key?: string; model?: string }): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/providers/configure', {
+      method: 'POST',
+      body: JSON.stringify({ provider, ...config, channel: 'ui-react', surface: 'ui-react' })
+    });
   }
 
   getHistory(): Promise<BackendHistory> {
@@ -225,19 +264,94 @@ export class BagoClient {
     return this.request<Record<string, unknown>>(`/files/read/${encodeURIComponent(filePath)}`, { method: 'GET' });
   }
 
+  writeFile(path: string, content: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/files/write', {
+      method: 'POST',
+      body: JSON.stringify({ path, content }),
+    });
+  }
+
+  private projectBody(root?: string): string {
+    return JSON.stringify(root ? { root, channel: 'ui-react', surface: 'ui-react' } : { channel: 'ui-react', surface: 'ui-react' });
+  }
+
+  getProjectStatus(): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/status', { method: 'GET' });
+  }
+
+  getProjectAnalyze(): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/analyze', { method: 'GET' });
+  }
+
+  initProject(root?: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/init', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  linkProject(root: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/link', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  seedProject(root: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/seed', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  syncProject(root?: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/project/sync', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  initWorkspace(root?: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/workspace/init', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  linkWorkspace(root: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/workspace/link', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  seedWorkspace(root: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/workspace/seed', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
+  syncWorkspace(root?: string): Promise<BackendCommandResult> {
+    return this.request<BackendCommandResult>('/workspace/sync', {
+      method: 'POST',
+      body: this.projectBody(root)
+    });
+  }
+
   runCommand(command: string): Promise<BackendCommandResult> {
     const body = JSON.stringify({ command, channel: 'ui-react', surface: 'ui-react' });
     return this.request<BackendCommandResult>('/api/v1/commands', {
       method: 'POST',
       body
-    }).catch((error) => {
+    }, 150_000).catch((error) => {
       if (!shouldFallbackToLegacy(error)) {
         throw error;
       }
       return this.request<BackendCommandResult>('/command', {
         method: 'POST',
         body
-      });
+      }, 150_000);
     });
   }
 
@@ -245,7 +359,7 @@ export class BagoClient {
     return this.request<BackendCommandResult>('/command', {
       method: 'POST',
       body: JSON.stringify({ command, channel: 'ui-react' })
-    });
+    }, 150_000);
   }
 
   async sendChat(message: string): Promise<Record<string, unknown>> {
@@ -253,7 +367,7 @@ export class BagoClient {
     return this.request<Record<string, unknown>>('/chat', {
       method: 'POST',
       body
-    });
+    }, 150_000);
   }
 
   async sendChatModern(message: string): Promise<Record<string, unknown>> {

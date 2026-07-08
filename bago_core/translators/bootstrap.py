@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bootstrap the translator layer.
 
-Adds C:\\ProgramData\\BAGO\\pieces\\translators\\shared\\base to sys.path
+Adds the shared translator piece root to sys.path
 once, then delegates to the piece's own registry module.
 """
 from __future__ import annotations
@@ -14,7 +14,16 @@ from typing import Any
 _BOOTSTRAPPED = False
 
 def _shared_base() -> Path:
-    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO" / "pieces" / "translators" / "shared" / "base"
+    override = os.environ.get("BAGO_PIECES_ROOT", "").strip()
+    if override:
+        return Path(override).expanduser().resolve() / "translators" / "shared" / "base"
+    data_root = os.environ.get("BAGO_DATA_ROOT", "").strip()
+    if data_root:
+        return Path(data_root).expanduser().resolve() / "pieces" / "translators" / "shared" / "base"
+    program_data = os.environ.get("ProgramData", "").strip()
+    if program_data:
+        return Path(program_data) / "BAGO" / "pieces" / "translators" / "shared" / "base"
+    return Path.home() / "AppData" / "Local" / "BAGO" / "pieces" / "translators" / "shared" / "base"
 
 def bootstrap_path() -> None:
     """Add the shared/base piece to sys.path so other pieces can `from ir_types import ...`."""

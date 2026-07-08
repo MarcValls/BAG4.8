@@ -14,7 +14,7 @@
       (New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/MarcValls/BAGO/main/install-remote.ps1') | Invoke-Expression
 
 .PARAMETER InstallDir
-  Directorio de instalacion. Default: C:\Program Files\BAGO
+  Directorio de instalacion. Default: %BAGO_INSTALL_DIR% o %ProgramFiles%\BAGO
 
 .PARAMETER Mode
   Modo del asistente local: Express o Advanced.
@@ -31,7 +31,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$InstallDir = "C:\Program Files\BAGO",
+    [string]$InstallDir = "",
     [ValidateSet("Express", "Advanced")]
     [string]$Mode = "Express",
     [string]$Tag = "",
@@ -41,6 +41,20 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-DefaultInstallDir {
+    [string]$override = [System.Environment]::GetEnvironmentVariable("BAGO_INSTALL_DIR")
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return [System.IO.Path]::GetFullPath($override) }
+    [string]$programFilesRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.Environment]::GetEnvironmentVariable("ProgramFiles") }
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.IO.Path]::GetTempPath() }
+    return (Join-Path $programFilesRoot "BAGO")
+}
+
+if ([string]::IsNullOrWhiteSpace($InstallDir)) {
+    $InstallDir = Get-DefaultInstallDir
+}
+
 function Get-LatestRelease {
     $ceiling = Get-ManagerVersion
     $apiUrl = "https://api.github.com/repos/MarcValls/BAGO/releases?per_page=100"

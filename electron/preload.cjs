@@ -4,9 +4,22 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const ROOT_DIR = path.join(__dirname, '..');
-const USER_ROOT = process.env.LOCALAPPDATA
-  ? path.join(process.env.LOCALAPPDATA, 'BAGO')
-  : path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
+
+function resolveUserRoot() {
+  const overrides = [
+    process.env.BAGO_USER_ROOT,
+    process.env.USER_BAGO_ROOT,
+    process.env.BAGO_ROOT
+  ];
+  for (const candidate of overrides) {
+    const clean = asPath(candidate);
+    if (clean) return full(clean);
+  }
+  if (process.env.LOCALAPPDATA) return path.join(process.env.LOCALAPPDATA, 'BAGO');
+  return path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
+}
+
+const USER_ROOT = resolveUserRoot();
 
 function asPath(p) {
   return String(p || '').trim();
@@ -47,6 +60,21 @@ function firstExistingPath(paths) {
     if (candidate && exists(candidate)) return candidate;
   }
   return '';
+}
+
+function resolveDefaultInstallDir() {
+  const envCandidates = [
+    process.env.BAGO_INSTALL_DIR,
+    process.env.BAGO_INSTALL_ROOT,
+    process.env.BAGO_INSTALLS_ROOT,
+    process.env.BAGO_ROOT
+  ];
+  for (const candidate of envCandidates) {
+    const clean = asPath(candidate);
+    if (clean) return full(clean);
+  }
+  const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+  return path.join(programFiles, 'BAGO');
 }
 
 function pidAlive(pid) {
@@ -359,7 +387,7 @@ function psEncoded(script) {
 
 function buildInstallCommand(tag, installDir, mode = 'Express') {
   const cleanTag = String(tag || '').trim();
-  const cleanDir = String(installDir || 'C:\\Program Files\\BAGO').trim();
+  const cleanDir = String(installDir || resolveDefaultInstallDir()).trim();
   const cleanMode = String(mode || 'Express').trim();
   const releaseVersion = readReleaseVersion();
   const releaseTag = releaseVersion ? `v${releaseVersion}` : '';
@@ -379,7 +407,7 @@ function buildInstallCommand(tag, installDir, mode = 'Express') {
 
 function buildSourceInstallCommand(sourceRoot, installDir, branch = 'main', mode = 'Express') {
   const cleanSource = full(String(sourceRoot || '').trim());
-  const cleanDir = full(String(installDir || 'C:\\Program Files\\BAGO').trim());
+  const cleanDir = full(String(installDir || resolveDefaultInstallDir()).trim());
   const cleanBranch = String(branch || 'main').trim() || 'main';
   const cleanMode = String(mode || 'Express').trim();
   const installScript = path.join(cleanSource, 'install-v4.ps1');
@@ -429,6 +457,7 @@ contextBridge.exposeInMainWorld('bagoElectron', {
   openWebChat: (options) => ipcRenderer.invoke('bago:open-web-chat', options || {}),
   openCliChat: (options) => ipcRenderer.invoke('bago:open-cli-chat', options || {}),
   webChatStatus: () => ipcRenderer.invoke('bago:web-chat-status'),
+  shutdown: () => ipcRenderer.invoke('bago:shutdown'),
   scanInstallations: (extraPaths) => Promise.resolve(scanInstallations(Array.isArray(extraPaths) ? extraPaths : [])),
   readInstallSelection: () => Promise.resolve(readInstallSelection()),
   writeInstallSelection: (role, installPath) => Promise.resolve(writeInstallSelection(role, installPath)),
@@ -439,13 +468,20 @@ contextBridge.exposeInMainWorld('bagoElectron', {
   buildSourceInstallCommand,
   buildUninstallCommand,
   buildRoleCommand,
+  getUserRoot: () => USER_ROOT,
+  getInstallSelectionPath: () => selectionPath(),
+  defaultInstallDir: () => resolveDefaultInstallDir(),
   installAction: (payload) => ipcRenderer.invoke('bago:install-action', payload || {}),
   managerHealth: () => ipcRenderer.invoke('bago:manager-health'),
   dependencyAction: (payload) => ipcRenderer.invoke('bago:dependency-action', payload || {}),
   runInstallPreflight: (payload) => ipcRenderer.invoke('bago:install-preflight', payload || {}),
   getManagerUrl: () => ipcRenderer.invoke('bago:manager-url'),
-  chooseWorkspaceRoot: () => ipcRenderer.invoke('bago:workspace-choose-root'),
-  chooseProjectRoot: () => ipcRenderer.invoke('bago:workspace-choose-root'),
+  onInstanceActive: (callback) => {
+    if (typeof callback !== 'function') return;
+    ipcRenderer.on('bago:instance-active', (_event, payload) => callback(payload));
+  },
+  chooseWorkspaceRoot: (options) => ipcRenderer.invoke('bago:workspace-choose-root', options || {}),
+  chooseProjectRoot: (options) => ipcRenderer.invoke('bago:workspace-choose-root', options || {}),
   linkProjectRoot: (root) => ipcRenderer.invoke('bago:workspace-link-root', String(root || '')),
   getChatUrl: (options) => ipcRenderer.invoke('bago:get-chat-url', options || {}),
   getInstallsRoot: () => ipcRenderer.invoke('bago:get-installs-root'),

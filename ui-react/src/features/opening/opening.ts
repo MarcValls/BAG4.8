@@ -65,8 +65,8 @@ export function resolveOpeningState(snapshot: UiBootstrapSnapshot | null): Openi
     return {
       id: 'show_workspace_link',
       label: 'Workspace ready to link',
-      reason: 'A workspace exists but the session is not linked yet.',
-      actionLabel: 'Link workspace',
+      reason: 'A workspace exists but the session is not linked yet. You can link it and seed it to make it valid.',
+      actionLabel: 'Link and seed',
       targetSection: 'home'
     };
   }

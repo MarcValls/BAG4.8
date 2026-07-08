@@ -3,16 +3,71 @@ from __future__ import annotations
 
 import argparse
 import os
+import socket
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 from bago_core.resolver import add_piece_paths
+from bago_core.user_state_paths import bago_lock_file, ensure_user_roots
 
 BAGO_ROOT = Path(__file__).resolve().parents[2]
 add_piece_paths("core.package", "chat.package", "providers.package", "api.package", "tools.package")
 
 from version import CURRENT as _BAGO_VERSION
+
+
+def _pick_free_port(host: str) -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, 0))
+        return int(sock.getsockname()[1])
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _acquire_bago_lock() -> tuple[bool, Path, int | None]:
+    ensure_user_roots()
+    lock_path = bago_lock_file()
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    if lock_path.exists():
+        try:
+            payload = lock_path.read_text(encoding='utf-8').strip().splitlines()
+            existing_pid = int(payload[0].strip()) if payload and payload[0].strip().isdigit() else None
+        except Exception:
+            existing_pid = None
+        if existing_pid and _pid_alive(existing_pid):
+            return False, lock_path, existing_pid
+        try:
+            lock_path.unlink()
+        except Exception:
+            return False, lock_path, existing_pid
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+            fh.write(f"{os.getpid()}\n{time.time()}\n")
+        return True, lock_path, None
+    except FileExistsError:
+        return False, lock_path, None
+
+
+def _release_bago_lock(lock_path: Path) -> None:
+    try:
+        lock_path.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 def cmd_claim(args: argparse.Namespace) -> int:
     """Gestiona el Claim Evidence Ledger."""
@@ -114,29 +169,47 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from switch_engine import SwitchEngine
     from bridge import BagoAPIServer
 
-    mgr = SessionManager(
-        provider=args.provider,
-        model=args.model,
-        base_path=args.base_path,
-    )
-    engine = SwitchEngine(mgr.adapters)
-    ui_dist = None
-    if getattr(args, "ui_dist", ""):
-        ui_dist = args.ui_dist
-    else:
-        default_ui_dist = BAGO_ROOT / "ui-react" / "dist"
-        if default_ui_dist.exists():
-            ui_dist = str(default_ui_dist)
-    server = BagoAPIServer(mgr, engine, port=args.port, host=args.host, token=args.token, static_dir=ui_dist)
-    server.start()
+    acquired, lock_path, existing_pid = _acquire_bago_lock()
+    if not acquired:
+        if existing_pid:
+            print(f"Ya hay una instancia de BAGO activa (pid {existing_pid}).")
+        else:
+            print("Ya hay una instancia de BAGO activa.")
+        return 0
+
+    mgr = None
     try:
-        while server.running:
-            import time
-            time.sleep(1)
-    except KeyboardInterrupt:
-        server.stop()
+        mgr = SessionManager(
+            provider=args.provider,
+            model=args.model,
+            base_path=args.base_path,
+        )
+        engine = SwitchEngine(mgr.adapters)
+        host = str(getattr(args, "host", "") or "127.0.0.1").strip() or "127.0.0.1"
+        port = int(getattr(args, "port", 0) or 0)
+        if port <= 0:
+            port = _pick_free_port(host)
+        ui_dist = None
+        if getattr(args, "ui_dist", ""):
+            ui_dist = args.ui_dist
+        else:
+            default_ui_dist = BAGO_ROOT / "ui-react" / "dist"
+            if default_ui_dist.exists():
+                ui_dist = str(default_ui_dist)
+        server = BagoAPIServer(mgr, engine, port=port, host=host, token=args.token, static_dir=ui_dist)
+        server.start()
+        try:
+            while server.running:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            server.stop()
     finally:
-        mgr.close()
+        try:
+            if mgr is not None:
+                mgr.close()
+        except Exception:
+            pass
+        _release_bago_lock(lock_path)
     return 0
 
 def cmd_manager(args: argparse.Namespace) -> int:
@@ -148,8 +221,20 @@ def cmd_manager(args: argparse.Namespace) -> int:
     from urllib.request import urlopen
 
     root = Path(getattr(args, "base_path", "") or BAGO_ROOT).resolve()
+    lock_path = bago_lock_file()
+    if lock_path.exists():
+        try:
+            pid_text = lock_path.read_text(encoding='utf-8').splitlines()[0].strip()
+            if pid_text.isdigit() and _pid_alive(int(pid_text)):
+                print(f"Ya hay una instancia de BAGO activa (pid {pid_text}).")
+                return 0
+        except Exception:
+            print("Ya hay una instancia de BAGO activa.")
+            return 0
     host = str(getattr(args, "host", "") or "127.0.0.1").strip() or "127.0.0.1"
-    port = int(getattr(args, "port", 0) or 8080)
+    port = int(getattr(args, "port", 0) or 0)
+    if port <= 0:
+        port = _pick_free_port(host)
     ui_dist = str(getattr(args, "ui_dist", "") or (root / "ui-react" / "dist")).strip()
     index_html = Path(ui_dist) / "index.html"
 

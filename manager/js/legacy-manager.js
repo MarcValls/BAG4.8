@@ -51,6 +51,26 @@ function pmLegacyBridgeReady(api, methodName, label){
   return true;
 }
 
+function resolveDefaultInstallTarget() {
+  const api = electronApi();
+  if (api && typeof api.defaultInstallDir === 'function') {
+    try {
+      return String(api.defaultInstallDir() || '').trim();
+    } catch {}
+  }
+  return '';
+}
+
+function resolveUserStateFile() {
+  const api = electronApi();
+  if (api && typeof api.getInstallSelectionPath === 'function') {
+    try {
+      return String(api.getInstallSelectionPath() || '').trim();
+    } catch {}
+  }
+  return '%BAGO_USER_ROOT%\\install_selection.json';
+}
+
 function isFutureReleaseTag(tagName, ceiling){
   const tag=normalizeVersionTag(tagName);
   const current=normalizeVersionTag(ceiling);
@@ -159,7 +179,7 @@ function roleCommand(role,target){
     '$role = '+psSingle(role),
     '$root = '+psSingle(target),
     '$label = '+psSingle(label),
-    "$userRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\\Local\\BAGO' }",
+    "$userRoot = if ($env:BAGO_USER_ROOT) { $env:BAGO_USER_ROOT } elseif ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\\Local\\BAGO' }",
     '$file = Join-Path $userRoot '+psSingle('install_selection.json'),
     '$roles = @{}',
     'if (Test-Path $file) { try { $data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json; if ($data.roles) { foreach ($p in $data.roles.PSObject.Properties) { $roles[$p.Name] = $p.Value } } } catch {} }',
@@ -240,7 +260,7 @@ function roleBadgeLabel(role){
 function renderRolePanel(items){
   if(!rolePanel||!roleCards)return;
   const selected=rolePathsFromSelection();
-  const file=installSelection.selection_file||'%LOCALAPPDATA%\\BAGO\\install_selection.json';
+  const file=installSelection.selection_file||resolveUserStateFile();
   roleFileLabel.textContent=file;
   rolePanel.style.display='block';
   roleCards.innerHTML=ROLE_ORDER.map(role=>{
@@ -318,7 +338,7 @@ function renderReleaseList(){
     const asset = (Array.isArray(rel.assets) ? rel.assets.find(a=>/\.zip$/i.test(a.name||'')) : null) || {};
     const betaBadge = rel.prerelease ? '<span class="badge badge-warn">beta</span>' : '<span class="badge badge-on">release</span>';
     const dateText = rel.published_at ? new Date(rel.published_at).toLocaleString() : 'fecha desconocida';
-    const target = document.getElementById('target-install-path')?.value || 'C:\\Program Files\\BAGO';
+    const target = document.getElementById('target-install-path')?.value || resolveDefaultInstallTarget();
     const safeTag = versionText(rel.tag_name || 'latest').replace(/[^A-Za-z0-9._-]/g, '_');
     return '<div class="release-item">'
       + '<div>'
@@ -337,7 +357,7 @@ function renderReleaseList(){
   releaseList.querySelectorAll('button.run').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const tag = btn.getAttribute('data-release')||'';
-      const target = btn.getAttribute('data-target')||'C:\\Program Files\\BAGO';
+      const target = btn.getAttribute('data-target')||resolveDefaultInstallTarget();
       runCommand(installCommand(tag,target));
     });
   });

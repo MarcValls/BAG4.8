@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const { spawn, execFile } = require('child_process');
 const fs = require('fs');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const {
@@ -15,6 +16,7 @@ const {
   resolveBundledRuntimeRoot,
   resolveInstalledRuntimeRoot,
   resolveDevelopmentRuntimeRoot,
+  resolvePythonCommand,
   runVisiblePowerShell,
   findPackagedRuntimeRoot
 } = require('./environment.cjs');
@@ -30,6 +32,13 @@ let runtimeService = null;
 let installService = null;
 let releaseService = null;
 let auditService = null;
+let shutdownRequested = false;
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+  process.exit(0);
+}
 if (SMOKE_TEST) {
   app.disableHardwareAcceleration();
   app.setPath('userData', path.join(os.tmpdir(), 'bago-manager-smoke'));
@@ -46,6 +55,7 @@ function getDependencyService() {
       path,
       ROOT_DIR,
       resolveBagoRuntimeRoot,
+      resolvePythonCommand,
       getManagerState: () => ({
         mutation: getRuntimeService().getState().mutation,
         ...getReleaseService().getState()
@@ -65,6 +75,7 @@ function getRuntimeService() {
       execFile,
       spawn,
       fs,
+      net,
       path,
       os,
       BrowserWindow,
@@ -77,6 +88,7 @@ function getRuntimeService() {
       resolveBundledRuntimeRoot,
       resolveInstalledRuntimeRoot,
       resolveDevelopmentRuntimeRoot,
+      resolvePythonCommand,
       runVisiblePowerShell
     });
   }
@@ -127,6 +139,22 @@ function getAuditService() {
 
 app.setAppUserModelId('com.bago.installation-manager');
 
+app.on('second-instance', () => {
+  const windows = BrowserWindow.getAllWindows().filter((win) => win && !win.isDestroyed());
+  if (windows.length > 0) {
+    const win = windows[0];
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+    try {
+      win.webContents.send('bago:instance-active', {
+        ok: true,
+        message: 'BAGO ya está abierto: se ha traído la ventana actual al frente.'
+      });
+    } catch {}
+  }
+});
+
 // Propagar INSTALLS_ROOT al preload vía env var para que scanInstallations lo incluya
 process.env.BAGO_INSTALLS_ROOT = INSTALLS_ROOT;
 registerIpcHandlers({
@@ -162,6 +190,30 @@ app.whenReady().then(async () => {
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createManagerWindow({ getRuntimeService });
+  });
+});
+
+async function shutdownBago() {
+  if (shutdownRequested) return;
+  shutdownRequested = true;
+  try {
+    if (runtimeService && typeof runtimeService.shutdown === 'function') {
+      await runtimeService.shutdown();
+    } else if (runtimeService && typeof runtimeService.cleanupZombies === 'function') {
+      await runtimeService.cleanupZombies();
+    }
+  } catch (error) {
+    console.error(`BAGO shutdown cleanup failed: ${error && error.message ? error.message : error}`);
+  }
+}
+
+app.on('before-quit', (event) => {
+  if (shutdownRequested) {
+    return;
+  }
+  event.preventDefault();
+  void shutdownBago().finally(() => {
+    app.quit();
   });
 });
 

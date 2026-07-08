@@ -10,6 +10,7 @@ function createDependencyService(ctx) {
     path,
     ROOT_DIR,
     resolveBagoRuntimeRoot,
+    resolvePythonCommand,
     getManagerState,
     runVisiblePowerShell
   } = ctx;
@@ -263,13 +264,14 @@ function createDependencyService(ctx) {
 
   function runPythonInline(script, args = [], cwd = ROOT_DIR, timeout = 20000) {
     return new Promise((resolve, reject) => {
+      const python = resolvePythonCommand();
       execFile(
-        'python',
-        ['-c', script, ...args.map(value => String(value || ''))],
+        python.command,
+        [...python.argsPrefix, '-c', script, ...args.map(value => String(value || ''))],
         { cwd, windowsHide: true, timeout, maxBuffer: 16 * 1024 * 1024 },
         (error, stdout, stderr) => {
           if (error) {
-            reject(new Error(String(stderr || stdout || error.message || 'python failed').trim()));
+            reject(new Error(String(stderr || stdout || error.message || `python failed (${python.display})`).trim()));
             return;
           }
           resolve({ stdout: String(stdout || '').trim(), stderr: String(stderr || '').trim() });

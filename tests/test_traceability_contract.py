@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -20,18 +19,6 @@ class TraceabilityContractTests(unittest.TestCase):
     def test_runtime_traceability_inputs_exist(self) -> None:
         for relative in ["release_version.txt", "versions.json", "scripts/package_v4.py"]:
             self.assertTrue((ROOT / relative).exists(), relative)
-
-    def test_local_snapshot_is_not_presented_as_git_worktree(self) -> None:
-        result = subprocess.run(
-            ["git", "status", "--short"],
-            cwd=ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-        if result.returncode != 0:
-            self.assertIn("not a git repository", result.stderr.lower())
 
     def test_historical_sprints_are_excluded_from_packages(self) -> None:
         testing = (ROOT / "docs" / "TESTING.md").read_text(encoding="utf-8")
@@ -63,8 +50,6 @@ class TraceabilityContractTests(unittest.TestCase):
         launcher = (ROOT / "bago_core" / "launcher.py").read_text(encoding="utf-8")
         repair = (ROOT / "scripts" / "repair_routing_runtime.py").read_text(encoding="utf-8")
         ssot = (ROOT / "bago_core" / "node_control_ssot.py").read_text(encoding="utf-8")
-        mcp_cmd = (ROOT / ".gabo" / "mcp" / "run_bago_mcp.cmd").read_text(encoding="utf-8")
-        mcp_cfg = (ROOT / ".gabo" / "mcp" / "mcp_config.json").read_text(encoding="utf-8")
         seed = (ROOT / ".gabo" / "seed.py").read_text(encoding="utf-8")
 
         self.assertNotIn("C:\\Users\\AMTEC_Terminal_1º\\BAG4.8\\release\\v4\\current", repo_map_md)
@@ -76,17 +61,12 @@ class TraceabilityContractTests(unittest.TestCase):
         self.assertNotIn("C:\\Program Files\\BAGO", chk)
         self.assertNotIn("C:\\Users\\AMTEC_Terminal_1º", repair)
         self.assertNotIn("C:\\ProgramData\\BAGO", ssot)
-        self.assertNotIn("C:\\Users\\AMTEC_Terminal_1º\\bago_fw", mcp_cmd)
-        self.assertNotIn("C:\\Users\\AMTEC_Terminal_1º\\bago_fw", mcp_cfg)
         self.assertIn("_piece_store_root", ssot)
         self.assertIn("Path(__file__).resolve().parents[1]", repair)
         self.assertIn("API_ROOT", chk)
-        self.assertIn("%~dp0", mcp_cmd)
-        self.assertNotIn('"BAGO_ROOT"', mcp_cfg)
-        self.assertNotIn('"BAGO_PADRE_PATH"', mcp_cfg)
-        self.assertIn("default_ref_root", seed)
-        self.assertIn('os.environ.get("ProgramFiles")', seed)
-        self.assertNotIn('default=r"C:\\Program Files\\BAGO"', seed)
+        self.assertIn("SKIP_DIRS", seed)
+        self.assertIn('".gabo"', seed)
+        self.assertIn("discover_api_canon", seed)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,9 @@ function pmLatestManagerAsset() {
 function pmSelectedInstallPath() {
   const selected = typeof pmFindInstallation === 'function' ? pmFindInstallation(pmSelectedInstallation) : null;
   const detected = typeof existingInstallations === 'function' ? existingInstallations() : [];
-  return (selected && selected.path) || (detected[0] && detected[0].path) || (pmManagerHealth && pmManagerHealth.runtime_root) || 'C:\\Program Files\\BAGO';
+  const api = electronApi();
+  const defaultInstallDir = api && typeof api.defaultInstallDir === 'function' ? String(api.defaultInstallDir() || '') : '';
+  return (selected && selected.path) || (detected[0] && detected[0].path) || (pmManagerHealth && pmManagerHealth.runtime_root) || defaultInstallDir;
 }
 
 function pmControlButton(label, action, tone = '', extra = '') {

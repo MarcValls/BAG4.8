@@ -8,6 +8,7 @@ Produces a local release summary by default and can build a zip artifact on dema
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import os
 import subprocess
@@ -19,15 +20,43 @@ from pathlib import Path
 
 EXCLUDE_DIRS = {
     ".git",
+    ".codex",
+    ".idea",
+    ".vscode",
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "coverage",
+    "htmlcov",
     "node_modules",
+    ".bago",
     "dist",
+    "build",
+    "output",
 }
 
 EXCLUDE_PATH_PARTS = {
     ".gabo/state",
     ".gabo\\state",
+    ".gabo/backups",
+    ".gabo\\backups",
+    ".gabo/logs",
+    ".gabo\\logs",
+    ".gabo/cache",
+    ".gabo\\cache",
+    ".gabo/launch",
+    ".gabo\\launch",
+}
+EXCLUDE_GLOBS = {
+    "*.sqlite",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.db-wal",
+    "*.db-shm",
+    "*.bak",
 }
 
 
@@ -57,7 +86,10 @@ def _is_excluded(relative_path: Path) -> bool:
     if any(part in EXCLUDE_DIRS for part in parts):
         return True
     rel_text = str(relative_path).replace("/", "\\")
-    return any(part.lower() in rel_text.lower() for part in EXCLUDE_PATH_PARTS)
+    if any(part.lower() in rel_text.lower() for part in EXCLUDE_PATH_PARTS):
+        return True
+    rel_posix = str(relative_path).replace("\\", "/")
+    return any(fnmatch.fnmatch(rel_posix, pattern) for pattern in EXCLUDE_GLOBS)
 
 
 def _sha256_file(path: Path) -> str:

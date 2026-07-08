@@ -10,7 +10,6 @@ Ejecuta chequeos end-to-end y reporta PASS/FAIL/WARN por cada dimensión:
   6. ui-react/src tiene estructura mínima
   7. la pieza de API tiene los módulos esperados
   8. verify-master.ps1 existe (si aplica)
-  9. Git repo inicializado (si aplica)
 
 Uso:
   bago doctor
@@ -96,12 +95,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     # ── 2. install_selection.json ────────────────────────────────────────────
     sel_path = install_selection_file()
-    legacy_sel_path = legacy_user_root() / "install_selection.json"
     sel_ok = sel_path.exists()
     sel_detail = ""
-    if not sel_ok and legacy_sel_path.exists():
-        sel_path = legacy_sel_path
-        sel_ok = True
     if sel_ok:
         try:
             sel = json.loads(sel_path.read_text(encoding="utf-8"))
@@ -111,10 +106,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 active = sel.get("roles", {}).get("active", {})
             active_path = active.get("path", "")
             if active_path:
-                # Resolver forma corta AMTEC_~1 a real
                 resolved = active_path
-                if "AMTEC_~1" in active_path:
-                    resolved = active_path.replace("AMTEC_~1", "AMTEC_Terminal_1º")
                 sel_ok = Path(resolved).exists()
                 if sel_ok:
                     sel_detail = f"active → {resolved}"
@@ -128,7 +120,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             sel_detail = f"error leyendo JSON: {exc}"
             fails += 1
     else:
-        sel_detail = f"{user_root()}\\install_selection.json no existe"
+        sel_detail = f"{sel_path} no existe"
         fails += 1
     checks.append(_check("install_selection", checks, sel_ok, sel_detail))
 
@@ -200,15 +192,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if not api_ok:
         fails += 1
     checks.append(_check("api_modules", checks, api_ok, api_detail))
-
-    # ── 7. Git repo ────────────────────────────────────────────────────────────
-    git_ok = (BAGO_ROOT / ".git").exists()
-    git_detail = ".git/ existe" if git_ok else "sin git repo"
-    # No es un FAIL, solo WARN
-    if not git_ok:
-        checks.append({**_check("git_repo", checks, True, git_detail + " (WARN)")})
-    else:
-        checks.append(_check("git_repo", checks, git_ok, git_detail))
 
     # ── Resultado final ────────────────────────────────────────────────────────
     print("\n" + "=" * 48)

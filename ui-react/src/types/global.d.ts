@@ -19,10 +19,11 @@ export interface WorkspaceLinkResult {
 }
 
 export interface BagoElectronBridge {
-  chooseWorkspaceRoot?: () => Promise<WorkspaceSelectionResult | null>;
-  chooseProjectRoot?: () => Promise<WorkspaceSelectionResult | null>;
+  chooseWorkspaceRoot?: (options?: { defaultPath?: string; basePath?: string; initialPath?: string }) => Promise<WorkspaceSelectionResult | null>;
+  chooseProjectRoot?: (options?: { defaultPath?: string; basePath?: string; initialPath?: string }) => Promise<WorkspaceSelectionResult | null>;
   linkProjectRoot?: (root: string) => Promise<WorkspaceLinkResult | null>;
   getManagerUrl?: () => Promise<string> | string;
+  onInstanceActive?: (callback: (payload: { ok?: boolean; message?: string }) => void) => void;
 }
 
 declare global {

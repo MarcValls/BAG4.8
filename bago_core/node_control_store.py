@@ -63,7 +63,16 @@ def registry_paths(base_path: str | Path) -> RegistryPaths:
     )
 
 def piece_store_root() -> Path:
-    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO" / "pieces"
+    override = os.environ.get("BAGO_PIECES_ROOT", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    data_root = os.environ.get("BAGO_DATA_ROOT", "").strip()
+    if data_root:
+        return Path(data_root).expanduser().resolve() / "pieces"
+    program_data = os.environ.get("ProgramData", "").strip()
+    if program_data:
+        return Path(program_data) / "BAGO" / "pieces"
+    return Path.home() / "AppData" / "Local" / "BAGO" / "pieces"
 
 def piece_store_dirs() -> list[Path]:
     root = piece_store_root()

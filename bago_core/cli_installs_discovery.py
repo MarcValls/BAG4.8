@@ -79,7 +79,9 @@ def _classify(path: Path) -> dict[str, Any]:
 
 def _scan() -> list[dict[str, Any]]:
     """Scan the known locations and the user-selected roles."""
-    pf  = os.environ.get("ProgramFiles", r"C:\Program Files")
+    pf = os.environ.get("ProgramFiles", "").strip()
+    if not pf:
+        pf = str(Path.home() / "AppData" / "Local" / "Programs")
     home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or str(Path.home())
     user = str(user_root())
     legacy = str(legacy_user_root())

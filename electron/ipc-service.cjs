@@ -20,6 +20,7 @@ function registerIpcHandlers({
   handle('bago:open-web-chat', (_event, options) => getRuntimeService().openWebChat(options || {}));
   handle('bago:open-cli-chat', (_event, options) => getRuntimeService().openCliChat(options || {}));
   handle('bago:web-chat-status', () => getRuntimeService().webChatStatus());
+  handle('bago:shutdown', () => getRuntimeService().shutdown());
   handle('bago:manager-health', () => getDependencyService().managerHealth());
   handle('bago:dependency-catalog', () => getDependencyService().dependencyCatalog());
   handle('bago:dependency-action', async (_event, payload) => getDependencyService().runDependencyAction(payload || {}));
@@ -27,7 +28,7 @@ function registerIpcHandlers({
   handle('bago:get-installs-root', () => INSTALLS_ROOT);
   handle('bago:fetch-releases', () => getReleaseService().fetchReleases());
   handle('bago:manager-url', () => getRuntimeService().getManagerUrl());
-  handle('bago:workspace-choose-root', async () => getRuntimeService().chooseWorkspaceRoot());
+  handle('bago:workspace-choose-root', async (_event, options) => getRuntimeService().chooseWorkspaceRoot(options || {}));
   handle('bago:workspace-link-root', (_event, root) => getRuntimeService().linkProjectRoot(root));
   handle('bago:get-chat-url', async (_event, options) => {
     const state = await getRuntimeService().ensureWebChatServer(options || {});

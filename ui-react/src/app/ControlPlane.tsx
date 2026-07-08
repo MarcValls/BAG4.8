@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ActiveSection, BackendCommandResult, BackendHistory, BackendMenu, BackendProviders, BackendRoutes, ChatTurn, InspectorLevel, SelectionRecord, UiAction, UiBootstrapSnapshot } from '@/contracts/backend';
-import { createBagoClient, persistApiConfig, readStoredApiBase, readStoredApiToken, safeJson } from '@/api/client';
+import type { ActiveSection, BackendCommandResult, BackendHistory, BackendMenu, BackendProviders, BackendRouterList, BackendRouterPolicy, BackendRoutes, ChatTurn, InspectorLevel, SelectionRecord, UiAction, UiBootstrapSnapshot } from '@/contracts/backend';
+import { createBagoClient, persistApiConfig, readStoredApiBase, readStoredApiToken, resolveDefaultApiBase, safeJson } from '@/api/client';
 import { GlobalHeader } from '@/layout/GlobalHeader';
 import { MainSidebar } from '@/layout/MainSidebar';
 import { SelectionInspector } from '@/layout/SelectionInspector';
@@ -8,7 +8,6 @@ import { StatusBar } from '@/layout/StatusBar';
 import { WorkspaceShell } from '@/layout/WorkspaceShell';
 import { ControlSections } from '@/features/sections';
 import { resolveOpeningState } from '@/features/opening/opening';
-import { OpeningScreen } from '@/features/opening/OpeningScreen';
 import { createDefaultUiState, loadUiState, patchUiState, persistUiState, type UiState } from '@/state/uiStore';
 
 function nowStamp(): string {
@@ -65,6 +64,21 @@ function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function shouldOfferSeed(snapshot: UiBootstrapSnapshot | null, selectedRoot: string): boolean {
+  const cleanRoot = selectedRoot.trim();
+  if (!cleanRoot || !snapshot) return false;
+  const currentRoot = String(snapshot.project.root || snapshot.workspace.repoRoot || snapshot.workspace.root || '').trim();
+  if (currentRoot && currentRoot === cleanRoot && snapshot.workspace.linkedToSession && snapshot.workspace.manifestState === 'valid') {
+    return false;
+  }
+  return Boolean(
+    snapshot.workspace.seedSuggested
+    || snapshot.workspace.manifestState !== 'valid'
+    || !snapshot.workspace.linkedToSession
+    || currentRoot !== cleanRoot
+  );
+}
+
 type WorkspaceSelectionResult = {
   ok?: boolean;
   canceled?: boolean;
@@ -83,10 +97,18 @@ function readSelectedWorkspace(result: WorkspaceSelectionResult | null | undefin
   return String(result.path || result.filePath || (Array.isArray(result.filePaths) ? result.filePaths[0] : '') || '').trim();
 }
 
-function quoteSlashArg(value: string): string {
-  const clean = String(value || '').trim();
-  if (!clean) return '""';
-  return `"${clean.replace(/"/g, '\\"')}"`;
+function normalizeWorkspaceHint(value: string): string {
+  const clean = String(value || '').trim().replace(/[\\/]+$/, '');
+  if (!clean) return '';
+  const normalized = clean.replace(/\//g, '\\');
+  const lower = normalized.toLowerCase();
+  if (lower.endsWith('\\.gabo') || lower.endsWith('\\.bago')) {
+    return normalized.slice(0, normalized.lastIndexOf('\\'));
+  }
+  if (lower === '.gabo' || lower === '.bago') {
+    return '';
+  }
+  return clean;
 }
 
 function normalizeActions(snapshot: UiBootstrapSnapshot | null): UiAction[] {
@@ -138,7 +160,7 @@ function normalizeActions(snapshot: UiBootstrapSnapshot | null): UiAction[] {
       enabled: snapshot.permissions.canInitializeWorkspace,
       visible: true,
       reasonDisabled: snapshot.permissions.canInitializeWorkspace ? undefined : 'Not allowed by backend',
-      payload: { command: '/project init' }
+      payload: { endpoint: 'project:init' }
     });
   }
   if (snapshot.permissions.canLinkWorkspace && snapshot.workspace.root) {
@@ -148,7 +170,7 @@ function normalizeActions(snapshot: UiBootstrapSnapshot | null): UiAction[] {
       kind: 'mutation',
       enabled: true,
       visible: true,
-      payload: { command: '/project link' }
+      payload: { endpoint: 'project:link', root: snapshot.project.root || snapshot.workspace.repoRoot || snapshot.workspace.root }
     });
   }
   if (snapshot.workspace.manifestState === 'invalid') {
@@ -159,7 +181,7 @@ function normalizeActions(snapshot: UiBootstrapSnapshot | null): UiAction[] {
       enabled: snapshot.permissions.canRepairWorkspace,
       visible: true,
       reasonDisabled: snapshot.permissions.canRepairWorkspace ? undefined : 'Repair disabled',
-      payload: { command: '/project status' }
+      payload: { endpoint: 'project:status' }
     });
   }
   return actions;
@@ -173,6 +195,7 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
   if (!raw) return null;
   const status = raw.status || {};
   const session = raw.session || {};
+  const workspaceMeta = raw.workspace || {};
   const binding = session.binding || {};
   const projectRoot = String(status.project_root || status.repo_root || binding.project_root || '');
   const workspaceRoot = String(status.workspace_state_root || session.binding?.workspace_state_root || '');
@@ -197,6 +220,8 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
     || ''
   );
   const workspaceState = String(status.workspace_state || session.workspace_state?.workspace_state || '');
+  const seedSuggested = Boolean(workspaceMeta.seed_suggested);
+  const seedReason = String(workspaceMeta.seed_reason || '');
   const manifestState: UiBootstrapSnapshot['workspace']['manifestState'] = workspaceState.includes('legacy')
     ? 'legacy'
     : workspaceState.includes('invalid')
@@ -244,11 +269,15 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
     ? 'error'
     : explicitModelState === 'degraded'
       ? 'degraded'
-      : status.provider && status.model
+      : (status.provider || session.provider) && (status.model || session.model || status.effective_model)
         ? 'confirmed'
         : 'unknown';
+  const effectiveProvider = String(status.provider || session.provider || '');
+  const effectiveModel = String(status.model || session.model || status.effective_model || '');
   const sessionState: UiBootstrapSnapshot['session']['state'] = session.session_id
-    ? (bindingConfirmed ? 'valid' : /mismatch|branch|scope|binding/i.test(bindingReason) ? 'blocked' : 'recoverable')
+    ? (bindingConfirmed
+      ? 'valid'
+      : /manifest|workspace root|scope|legacy|invalid/i.test(bindingReason) ? 'blocked' : 'recoverable')
     : 'missing';
   const codeTask = Object.keys(codeTaskClassification).length || Object.keys(codeTaskContract).length || Object.keys(codeTaskContext).length
     ? ({
@@ -295,7 +324,9 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
       bindingReason: bindingReason || undefined,
       mirrorReady: Boolean(status.workspace_mirror_ready),
       manifestState,
-      linkedToSession: bindingConfirmed
+      linkedToSession: bindingConfirmed,
+      seedSuggested,
+      seedReason: seedReason || undefined
     },
     session: {
       id: String(status.session_id || session.session_id || ''),
@@ -322,10 +353,11 @@ function buildSnapshot(raw: any): UiBootstrapSnapshot | null {
       certificationStatus: certificationStatus || undefined
     },
     permissions: {
-      canChat: bindingConfirmed && Boolean(status.provider) && Boolean(status.model),
+      canChat: bindingConfirmed && Boolean(effectiveProvider) && Boolean(effectiveModel),
       canInitializeWorkspace: !workspaceRoot,
       canLinkWorkspace: Boolean(workspaceRoot) && !bindingConfirmed,
-      canRepairWorkspace: Boolean(workspaceRoot) && !bindingConfirmed,
+      canRepairWorkspace: Boolean(workspaceRoot) && /manifest|workspace root|scope|legacy|invalid/i.test(bindingReason || workspaceState),
+      canSeedWorkspace: Boolean(workspaceRoot),
       canRunTools: bindingConfirmed && activeBridges.length > 0,
       canInspectContext: bindingConfirmed && Boolean(contextRevision || lastReceiptId),
       canViewEvidence: Boolean(lastReceiptId || (Array.isArray(raw.history?.messages) && raw.history.messages.length)),
@@ -371,11 +403,11 @@ export function ControlPlane() {
     };
   });
   const [booting, setBooting] = useState(true);
-  const [entered, setEntered] = useState(false);
   const [snapshot, setSnapshot] = useState<UiBootstrapSnapshot | null>(null);
   const [menu, setMenu] = useState<BackendMenu | null>(null);
   const [routes, setRoutes] = useState<BackendRoutes | null>(null);
   const [providers, setProviders] = useState<BackendProviders | null>(null);
+  const [routerState, setRouterState] = useState<{ list: BackendRouterList | null; policy: BackendRouterPolicy | null }>({ list: null, policy: null });
   const [history, setHistory] = useState<BackendHistory | null>(null);
   const [files, setFiles] = useState<Record<string, unknown> | null>(null);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -392,7 +424,10 @@ export function ControlPlane() {
 
   const setAndPersistUiState = (patch: Partial<UiState>) => {
     setUiState((current) => {
-      const next = patchUiState(current, patch);
+      const next = patchUiState(current, {
+        ...patch,
+        workspaceHint: patch.workspaceHint !== undefined ? normalizeWorkspaceHint(patch.workspaceHint) : patch.workspaceHint
+      });
       persistUiState(next);
       persistApiConfig(next.apiBase || readStoredApiBase(), next.apiToken || '');
       clientRef.current.setConfig(next.apiBase || readStoredApiBase(), next.apiToken || '');
@@ -408,12 +443,15 @@ export function ControlPlane() {
     setMenu((data.menu || null) as BackendMenu | null);
     setRoutes((data.routes || null) as BackendRoutes | null);
     setProviders((data.providers || null) as BackendProviders | null);
+    setRouterState({
+      list: (data.router_list || null) as BackendRouterList | null,
+      policy: (data.router_policy || null) as BackendRouterPolicy | null
+    });
     setHistory((data.history || null) as BackendHistory | null);
     setFiles((data.files || null) as Record<string, unknown> | null);
     setTurns((current) => current.length ? current : historyToTurns(data.history));
     if (nextOpening.id === 'enter_directly') {
-      setEntered(true);
-      setUiState((current) => current.activeSection === 'home' ? patchUiState(current, { activeSection: 'chat' }) : current);
+      setUiState((current) => current.activeSection === 'chat' ? current : patchUiState(current, { activeSection: 'home' }));
     }
     return nextSnapshot;
   };
@@ -447,67 +485,76 @@ export function ControlPlane() {
         },
         recommendedActions: []
       };
-      setSnapshot(errorSnapshot);
-      setOpening(resolveOpeningState(errorSnapshot));
-      setFiles(null);
-      setLastMessage(error instanceof Error ? error.message : 'fallo de conexión');
-    } finally {
-      setBooting(false);
-    }
+        setSnapshot(errorSnapshot);
+        setOpening(resolveOpeningState(errorSnapshot));
+        setRouterState({ list: null, policy: null });
+        setFiles(null);
+        setLastMessage(error instanceof Error ? error.message : 'fallo de conexión');
+      } finally {
+        setBooting(false);
+      }
   };
 
-  const chooseWorkspaceExplorer = async (): Promise<string | null> => {
+  const resolveWorkspaceStartPath = (): string => {
+    return normalizeWorkspaceHint(uiState.workspaceHint)
+      || snapshot?.project.root
+      || snapshot?.workspace.repoRoot
+      || snapshot?.workspace.authorizedRoot
+      || snapshot?.workspace.contextRoot
+      || snapshot?.workspace.root
+      || '';
+  };
+
+  const chooseWorkspaceExplorer = async (defaultPath?: string): Promise<string | null> => {
     const bridge = getElectronBridge();
     const chooseRoot = bridge?.chooseProjectRoot || bridge?.chooseWorkspaceRoot;
     if (chooseRoot) {
-      const selection = (await chooseRoot()) as WorkspaceSelectionResult | null;
+      const selection = (await chooseRoot({ defaultPath: defaultPath || resolveWorkspaceStartPath() })) as WorkspaceSelectionResult | null;
       const selectedRoot = readSelectedWorkspace(selection);
       if (!selectedRoot) {
         setLastMessage('selección de workspace cancelada');
         return null;
       }
-      setAndPersistUiState({ workspaceHint: selectedRoot });
-      setWorkspacePickerOpen(false);
-      const command = `/project link ${quoteSlashArg(selectedRoot)}`;
-      const result = await runCommand(command);
-      if (result && result.ok === false) {
-        setLastMessage(String(result.message || 'no se pudo activar el workspace'));
-        return null;
-      }
-      setLastMessage(`workspace activado: ${selectedRoot}`);
-      openShell('workspace');
-      return selectedRoot;
+      const seedAfterLink = shouldOfferSeed(snapshot, selectedRoot)
+        ? window.confirm(`La ruta ${selectedRoot} no está validada todavía.\n\n¿Sembrar ahora para dejarla válida?`)
+        : false;
+      const activated = await activateWorkspaceRoot(selectedRoot, 'workspace activado', { seedAfterLink });
+      return activated ? selectedRoot : null;
     }
     setLastMessage('el explorador nativo solo está disponible en Electron');
     return null;
   };
 
   const openWorkspacePicker = (): void => {
-    setWorkspacePickerValue(uiState.workspaceHint || snapshot?.workspace.root || '');
+    setWorkspacePickerValue(resolveWorkspaceStartPath());
     setWorkspacePickerOpen(true);
   };
 
-  const confirmWorkspacePicker = async () => {
+  const chooseWorkspaceFromHeader = (): void => {
+    if (workspaceBridgeAvailable) {
+      void chooseWorkspaceExplorer(resolveWorkspaceStartPath());
+      return;
+    }
+    openWorkspacePicker();
+  };
+
+  const confirmWorkspacePicker = async (seedAfterLink: boolean) => {
     const selectedRoot = workspacePickerValue.trim();
     if (!selectedRoot) {
       setLastMessage('selección de workspace cancelada');
       setWorkspacePickerOpen(false);
       return;
     }
-    setWorkspacePickerOpen(false);
-    setAndPersistUiState({ workspaceHint: selectedRoot });
-    const result = await runCommand(`/project link ${quoteSlashArg(selectedRoot)}`);
-    if (result && result.ok === false) {
-      setLastMessage(String(result.message || 'no se pudo activar el workspace'));
-      return;
-    }
-    setLastMessage(`workspace activado en navegador: ${selectedRoot}`);
-    openShell('workspace');
+    await activateWorkspaceRoot(selectedRoot, 'workspace activado en navegador', {
+      seedAfterLink
+    });
   };
 
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  const entered = opening.id === 'enter_directly' || (uiState.activeSection !== 'home' && Boolean(snapshot));
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -525,14 +572,75 @@ export function ControlPlane() {
   }, [entered]);
 
   useEffect(() => {
+    const bridge = getElectronBridge();
+    if (!bridge?.onInstanceActive) return;
+    bridge.onInstanceActive((payload) => {
+      setLastMessage(String(payload?.message || 'BAGO ya está abierto'));
+    });
+  }, []);
+
+  useEffect(() => {
     persistUiState(uiState);
   }, [uiState]);
 
   const combinedActions = useMemo(() => snapshot?.recommendedActions || [], [snapshot]);
 
-  const refreshAfterMutation = async () => {
+  const refreshAfterMutation = async (): Promise<UiBootstrapSnapshot | null> => {
     const next = await clientRef.current.bootstrap();
-    applyBootData(next);
+    return applyBootData(next);
+  };
+
+  const refreshRouterState = async (): Promise<void> => {
+    const [list, policy] = await Promise.all([
+      clientRef.current.getRouterList().catch(() => undefined),
+      clientRef.current.getRouterPolicy().catch(() => undefined)
+    ]);
+    setRouterState({
+      list: (list || null) as BackendRouterList | null,
+      policy: (policy || null) as BackendRouterPolicy | null
+    });
+  };
+
+  const activateWorkspaceRoot = async (selectedRoot: string, sourceLabel: string, options?: { seedAfterLink?: boolean }): Promise<boolean> => {
+    const cleanRoot = selectedRoot.trim();
+    if (!cleanRoot) {
+      setLastMessage('selección de workspace cancelada');
+      return false;
+    }
+
+    setAndPersistUiState({ workspaceHint: normalizeWorkspaceHint(cleanRoot) });
+    setWorkspacePickerOpen(false);
+
+    try {
+      const linkResult = await clientRef.current.linkProject(cleanRoot);
+      if (linkResult.ok === false) {
+        setLastMessage(String(linkResult.message || 'no se pudo activar el workspace'));
+        return false;
+      }
+
+      let nextSnapshot = await refreshAfterMutation();
+      if (options?.seedAfterLink) {
+        const seedResult = await clientRef.current.seedProject(cleanRoot);
+        if (seedResult.ok === false) {
+          setLastMessage(String(seedResult.message || 'no se pudo sembrar el workspace'));
+          return false;
+        }
+        nextSnapshot = await refreshAfterMutation();
+      }
+
+      const activated = Boolean(nextSnapshot?.project.root) && nextSnapshot.permissions.canChat;
+      if (!activated) {
+        setLastMessage(`el backend no pudo autorizar el chat para ${cleanRoot}`);
+        return false;
+      }
+
+      setLastMessage(`${sourceLabel}: ${cleanRoot}`);
+      openShell('workspace');
+      return true;
+    } catch (error) {
+      setLastMessage(error instanceof Error ? error.message : 'no se pudo activar el workspace');
+      return false;
+    }
   };
 
   const runCommand = async (command: string): Promise<BackendCommandResult | null> => {
@@ -566,6 +674,9 @@ export function ControlPlane() {
       if (clean === '/context certify') setCommandResults((current) => ({ ...current, contextCertify: result }));
 
       if (clean === '/status' || clean === '/session' || clean.startsWith('/context') || clean.startsWith('/project') || clean.startsWith('/workspace')) {
+        await refreshAfterMutation();
+      }
+      if (clean === '/project status' || clean === '/project analyze') {
         await refreshAfterMutation();
       }
       setLastMessage(result.message || clean);
@@ -694,6 +805,29 @@ export function ControlPlane() {
       navigate(String(action.payload.section) as ActiveSection);
       return;
     }
+    const endpoint = String(action.payload?.endpoint || '');
+    if (endpoint === 'project:init') {
+      await clientRef.current.initProject();
+      await refreshAfterMutation();
+      return;
+    }
+    if (endpoint === 'project:link') {
+      const root = String(action.payload?.root || snapshot?.project.root || snapshot?.workspace.repoRoot || snapshot?.workspace.root || '').trim();
+      if (!root) {
+        setLastMessage('no hay workspace activo para enlazar');
+        return;
+      }
+      const seedAfterLink = shouldOfferSeed(snapshot, root)
+        ? window.confirm(`La ruta ${root} no está validada todavía.\n\n¿Sembrar ahora para dejarla válida?`)
+        : false;
+      await activateWorkspaceRoot(root, 'workspace enlazado', { seedAfterLink });
+      return;
+    }
+    if (endpoint === 'project:status') {
+      await clientRef.current.getProjectStatus();
+      await refreshAfterMutation();
+      return;
+    }
     if (action.payload?.command) await runCommand(String(action.payload.command));
   };
 
@@ -707,6 +841,7 @@ export function ControlPlane() {
       { id: 'nav-evidence', label: 'Ir a Evidencia', action: () => navigate('evidence') },
       { id: 'nav-context', label: 'Ir a Contexto', action: () => navigate('context') },
       { id: 'nav-system', label: 'Ir a Sistema', action: () => navigate('system') },
+      { id: 'nav-providers', label: 'Ir a Proveedores', action: () => navigate('providers') },
       { id: 'cmd-status', label: 'Ejecutar /status', action: () => void runCommand('/status') },
       { id: 'cmd-session', label: 'Ejecutar /session', action: () => void runCommand('/session') },
       { id: 'ctx-attach', label: 'Adjuntar contexto', action: () => void runContextCommand('/context attach') },
@@ -728,122 +863,157 @@ export function ControlPlane() {
   };
 
   const openShell = (section: ActiveSection, mode: UiState['globalMode'] = 'normal') => {
-    setEntered(true);
     setAndPersistUiState({ activeSection: section, globalMode: mode });
   };
 
-  const openingLayer = !entered ? (
-    <OpeningScreen
-      snapshot={snapshot}
-      opening={opening}
-      booting={booting}
-      workspaceHint={uiState.workspaceHint}
-      apiBase={uiState.apiBase}
-      apiToken={uiState.apiToken}
-          onApiConfigChange={(patch) => setAndPersistUiState(patch)}
-          onPrimary={() => openShell(opening.targetSection === 'home' && snapshot?.permissions.canChat ? 'chat' : opening.targetSection)}
-          onContinue={() => { void runCommand('/session').then(() => openShell(snapshot?.permissions.canChat ? 'chat' : 'home')); }}
-          onChooseWorkspace={openWorkspacePicker}
-          onOpenPalette={() => setAndPersistUiState({ commandPaletteOpen: true })}
-          onRefresh={bootstrap}
-        />
-  ) : null;
+  const toggleRouterSelection = async (key: string): Promise<void> => {
+    const clean = key.trim();
+    if (!clean) return;
+    setLastMessage(`cambiando router ${clean}`);
+    await clientRef.current.toggleRouter(clean);
+    await refreshRouterState();
+    await refreshAfterMutation();
+  };
+
+  const setRouterAutoSwitch = async (enabled: boolean): Promise<void> => {
+    setLastMessage(enabled ? 'activando auto-router' : 'desactivando auto-router');
+    await clientRef.current.setRouterAuto(enabled);
+    await refreshRouterState();
+    await refreshAfterMutation();
+  };
+
+  const [sessionModel, setSessionModelState] = useState<string | null>(null);
+
+  const configureProvider = async (provider: string, config: { enabled?: boolean; base_url?: string; api_key?: string; model?: string }): Promise<void> => {
+    setLastMessage(`configurando proveedor ${provider}`);
+    await clientRef.current.configureProvider(provider, config);
+    await refreshAfterMutation();
+  };
+
+  const setSessionModelCb = async (modelKey: string | null): Promise<void> => {
+    setLastMessage(modelKey ? `modelo sesión: ${modelKey}` : 'modelo sesión: auto');
+    await clientRef.current.setSessionModel(modelKey);
+    setSessionModelState(modelKey);
+  };
+
+  useEffect(() => {
+    clientRef.current.getSessionModel().then((r) => {
+      const m = r?.model as string | null | undefined;
+      setSessionModelState(m ?? null);
+    }).catch(() => null);
+  }, []);
 
   return (
     <>
-      {openingLayer || (
-        <div className={`app-root mode-${uiState.globalMode} ${uiState.sidebarCollapsed ? 'sidebar-collapsed' : ''} ${selection ? 'has-inspector' : ''}`}>
-          <GlobalHeader
-            snapshot={snapshot}
-            workspaceHint={uiState.workspaceHint}
-            apiBase={uiState.apiBase}
-            apiToken={uiState.apiToken}
-            activeSection={uiState.activeSection}
-            onApiConfigChange={(patch) => setAndPersistUiState(patch)}
-            onOpenPalette={() => setAndPersistUiState({ commandPaletteOpen: true })}
-            onToggleSidebar={() => setAndPersistUiState({ sidebarCollapsed: !uiState.sidebarCollapsed })}
-            onRefresh={bootstrap}
-            onSetMode={(mode) => setAndPersistUiState({ globalMode: mode })}
-            onRunCommand={(command) => void runCommand(command)}
-            onChooseWorkspace={openWorkspacePicker}
-            globalMode={uiState.globalMode}
-            sidebarCollapsed={uiState.sidebarCollapsed}
-          />
+      <div className={`app-root mode-${uiState.globalMode} ${uiState.sidebarCollapsed ? 'sidebar-collapsed' : ''} ${selection ? 'has-inspector' : ''}`}>
+        <GlobalHeader
+          snapshot={snapshot}
+          workspaceHint={uiState.workspaceHint}
+          apiBase={uiState.apiBase}
+          apiToken={uiState.apiToken}
+          activeSection={uiState.activeSection}
+          onApiConfigChange={(patch) => setAndPersistUiState(patch)}
+          onOpenPalette={() => setAndPersistUiState({ commandPaletteOpen: true })}
+          onToggleSidebar={() => setAndPersistUiState({ sidebarCollapsed: !uiState.sidebarCollapsed })}
+          onRefresh={bootstrap}
+          onSetMode={(mode) => setAndPersistUiState({ globalMode: mode })}
+          onRunCommand={(command) => void runCommand(command)}
+          onChooseWorkspace={chooseWorkspaceFromHeader}
+          globalMode={uiState.globalMode}
+          sidebarCollapsed={uiState.sidebarCollapsed}
+        />
 
-          <div className="app-body">
-            {uiState.globalMode === 'normal' && (
-              <MainSidebar
-                activeSection={uiState.activeSection}
-                snapshot={snapshot}
-                opening={opening}
-                actions={combinedActions}
-                workspaceHint={uiState.workspaceHint}
-                collapsed={uiState.sidebarCollapsed}
-                onNavigate={navigate}
-                onRunAction={runAction}
-              />
-            )}
-
-            <WorkspaceShell
+        <div className="app-body">
+          {uiState.globalMode === 'normal' && (
+            <MainSidebar
               activeSection={uiState.activeSection}
               snapshot={snapshot}
-              mode={uiState.globalMode}
-            >
-              <ControlSections
-                section={uiState.activeSection}
-                snapshot={snapshot}
-                menu={menu}
-                routes={routes}
-                providers={providers}
-                history={history}
-                files={files}
-                commandResults={commandResults}
-                turns={turns}
-                drafts={uiState.drafts}
-                chatMode={uiState.chatMode}
-                globalMode={uiState.globalMode}
-                onDraftChange={setDraft}
-                onSendChat={sendChat}
-                onInspect={onInspect}
-                onRunCommand={runCommand}
-                onRunContextCommand={runContextCommand}
-                onRunAction={runAction}
-                onRunPlanTask={runPlanTask}
-                onSetSection={navigate}
-                onSetChatMode={(mode) => setAndPersistUiState({ chatMode: mode })}
-                onSetGlobalMode={(mode) => setAndPersistUiState({ globalMode: mode })}
-                onChooseWorkspace={openWorkspacePicker}
-                onReadFile={(path) => clientRef.current.readFile(path).catch(() => null)}
-              />
-            </WorkspaceShell>
+              opening={opening}
+              actions={combinedActions}
+              workspaceHint={uiState.workspaceHint}
+              collapsed={uiState.sidebarCollapsed}
+              onNavigate={navigate}
+              onRunAction={runAction}
+            />
+          )}
 
-            {selection && uiState.globalMode === 'normal' && (
-              <SelectionInspector
-                selection={selection}
-                inspectorLevel={uiState.inspectorLevel}
-                onLevelChange={(level) => setAndPersistUiState({ inspectorLevel: level })}
-                onUseInChat={useSelectionInChat}
-                onClose={() => setSelection(null)}
-              />
-            )}
-          </div>
+          <WorkspaceShell
+            activeSection={uiState.activeSection}
+            snapshot={snapshot}
+            mode={uiState.globalMode}
+          >
+            <ControlSections
+              section={uiState.activeSection}
+              snapshot={snapshot}
+              opening={opening}
+              booting={booting}
+              workspaceHint={uiState.workspaceHint}
+              apiBase={uiState.apiBase}
+              apiToken={uiState.apiToken}
+              onApiConfigChange={(patch) => setAndPersistUiState(patch)}
+              onPrimary={() => openShell(opening.targetSection === 'home' && snapshot?.permissions.canChat ? 'chat' : opening.targetSection)}
+              onContinue={() => { void runCommand('/session').then(() => openShell(snapshot?.permissions.canChat ? 'chat' : 'home')); }}
+              onChooseWorkspace={openWorkspacePicker}
+              onOpenPalette={() => setAndPersistUiState({ commandPaletteOpen: true })}
+              onRefresh={bootstrap}
+              menu={menu}
+              routes={routes}
+              providers={providers}
+              router={routerState}
+              history={history}
+              files={files}
+              commandResults={commandResults}
+              turns={turns}
+              drafts={uiState.drafts}
+              chatMode={uiState.chatMode}
+              globalMode={uiState.globalMode}
+              onDraftChange={setDraft}
+              onSendChat={sendChat}
+              onInspect={onInspect}
+              onRunCommand={runCommand}
+              onRunContextCommand={runContextCommand}
+              onRunAction={runAction}
+              onRunPlanTask={runPlanTask}
+              onSetSection={navigate}
+              onSetChatMode={(mode) => setAndPersistUiState({ chatMode: mode })}
+              onSetGlobalMode={(mode) => setAndPersistUiState({ globalMode: mode })}
+              onReadFile={(path) => clientRef.current.readFile(path).catch(() => null)}
+              onRefreshRouter={refreshRouterState}
+              onToggleRouter={toggleRouterSelection}
+              onSetRouterAuto={setRouterAutoSwitch}
+              onConfigureProvider={configureProvider}
+              onSetSessionModel={setSessionModelCb}
+              sessionModel={sessionModel}
+            />
+          </WorkspaceShell>
 
-          {uiState.globalMode === 'normal' && (
-            <StatusBar snapshot={snapshot} booting={booting} lastMessage={lastMessage} openingLabel={opening.label} />
+          {selection && uiState.globalMode === 'normal' && (
+            <SelectionInspector
+              selection={selection}
+              inspectorLevel={uiState.inspectorLevel}
+              onLevelChange={(level) => setAndPersistUiState({ inspectorLevel: level })}
+              onUseInChat={useSelectionInChat}
+              onClose={() => setSelection(null)}
+            />
           )}
         </div>
-      )}
+
+        {uiState.globalMode === 'normal' && (
+          <StatusBar snapshot={snapshot} booting={booting} lastMessage={lastMessage} openingLabel={opening.label} />
+        )}
+      </div>
 
       {uiState.commandPaletteOpen && (
         <CommandPalette actions={paletteActions} onClose={() => setAndPersistUiState({ commandPaletteOpen: false })} />
       )}
       {workspacePickerOpen && (
-        <WorkspacePickerDialog
+      <WorkspacePickerDialog
           value={workspacePickerValue}
           onChange={setWorkspacePickerValue}
           onClose={() => setWorkspacePickerOpen(false)}
-          onChooseExplorer={() => { void chooseWorkspaceExplorer(); }}
-          onConfirm={() => { void confirmWorkspacePicker(); }}
+          onChooseExplorer={() => { void chooseWorkspaceExplorer(workspacePickerValue || resolveWorkspaceStartPath()); }}
+          seedSuggested={shouldOfferSeed(snapshot, workspacePickerValue || resolveWorkspaceStartPath())}
+          onConfirm={(seed) => { void confirmWorkspacePicker(seed); }}
         />
       )}
     </>
@@ -900,21 +1070,22 @@ interface WorkspacePickerDialogProps {
   onChange: (value: string) => void;
   onClose: () => void;
   onChooseExplorer: () => void;
-  onConfirm: () => void;
+  seedSuggested: boolean;
+  onConfirm: (seed: boolean) => void;
 }
 
-function WorkspacePickerDialog({ value, onChange, onClose, onChooseExplorer, onConfirm }: WorkspacePickerDialogProps) {
+function WorkspacePickerDialog({ value, onChange, onClose, onChooseExplorer, seedSuggested, onConfirm }: WorkspacePickerDialogProps) {
   const bridge = getElectronBridge();
-  const bridgeAvailable = Boolean((bridge?.chooseProjectRoot || bridge?.chooseWorkspaceRoot) && bridge?.linkProjectRoot);
+  const bridgeAvailable = Boolean(bridge?.chooseProjectRoot || bridge?.chooseWorkspaceRoot);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) onConfirm();
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) onConfirm(seedSuggested);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, onConfirm]);
+  }, [onClose, onConfirm, seedSuggested]);
 
   return (
     <div className="command-palette-backdrop workspace-picker-backdrop" role="dialog" aria-modal="true" aria-label="Elegir workspace">
@@ -926,6 +1097,9 @@ function WorkspacePickerDialog({ value, onChange, onClose, onChooseExplorer, onC
         </div>
         <div className="workspace-picker-body">
           <p>Elige el workspace con el explorador nativo o pega la ruta completa manualmente.</p>
+          {seedSuggested && (
+            <p>Ese workspace todavía no está validado. Puedes sembrarlo al activarlo para dejarlo usable.</p>
+          )}
           <div className="workspace-picker-example">
             <span>Ejemplo</span>
             <code>C:\Users\AMTEC_Terminal_1º\BAG4.8</code>
@@ -934,7 +1108,14 @@ function WorkspacePickerDialog({ value, onChange, onClose, onChooseExplorer, onC
         <div className="workspace-picker-actions">
           <button type="button" className="secondary-button compact" onClick={onChooseExplorer} disabled={!bridgeAvailable}>Abrir Explorer</button>
           <button type="button" className="secondary-button compact" onClick={onClose}>Cancelar</button>
-          <button type="button" className="primary-button compact" onClick={onConfirm}>Vincular workspace</button>
+          {seedSuggested ? (
+            <>
+              <button type="button" className="secondary-button compact" onClick={() => onConfirm(false)}>Activar sin sembrar</button>
+              <button type="button" className="primary-button compact" onClick={() => onConfirm(true)}>Sembrar y activar</button>
+            </>
+          ) : (
+            <button type="button" className="primary-button compact" onClick={() => onConfirm(false)}>Activar workspace</button>
+          )}
         </div>
       </div>
     </div>

@@ -6,6 +6,8 @@ from pathlib import Path
 
 NODE_CONTROL_SCHEMA_VERSION = 1
 
+PIECE_STORE_ROOT_ENV = "BAGO_PIECES_ROOT"
+
 PIECE_STORE_TYPES = ("tools", "agents", "skills", "repos", "knowledge", "models", "connectors", "blobs", "cache", "translators")
 
 ALLOWED_MODES = ("connected", "shadow", "locked", "detached", "read-only", "writable overlay")
@@ -21,7 +23,16 @@ CLI_MODES = {
 
 
 def _piece_store_root() -> Path:
-    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO" / "pieces"
+    override = os.environ.get(PIECE_STORE_ROOT_ENV, "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    data_root = os.environ.get("BAGO_DATA_ROOT", "").strip()
+    if data_root:
+        return Path(data_root).expanduser().resolve() / "pieces"
+    program_data = os.environ.get("ProgramData", "").strip()
+    if program_data:
+        return Path(program_data) / "BAGO" / "pieces"
+    return Path.home() / "AppData" / "Local" / "BAGO" / "pieces"
 
 
 def _piece_store_path(*parts: str) -> str:

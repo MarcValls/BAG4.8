@@ -65,21 +65,38 @@ INCLUDE_DIRS = [
 
 EXCLUDED_PARTS = {
     ".git",
+    ".codex",
+    ".idea",
+    ".vscode",
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "coverage",
+    "htmlcov",
     "node_modules",
     ".vite",
+    ".bago",
 }
 
 EXCLUDED_PREFIXES = [
+    ".bago/backups",
+    ".bago/state",
+    ".bago/logs",
+    ".bago/cache",
+    ".gabo/backups",
     ".gabo/state",
     ".gabo/logs",
+    ".gabo/cache",
     ".gabo/launch",
     ".gabo/tools/.gabo",
     "PLAN_VERTICE",
     "release",
     "dist",
     "build",
+    "output",
+    "out",
     "tools/sprints",
     ".ollama",
     ".cache/ollama",
@@ -93,6 +110,13 @@ EXCLUDED_GLOBS = [
     "*.py.new",
     "bago_core/parsers_legacy_*.py",
     "tools/_diff_*.py",
+    "*.sqlite",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.db-wal",
+    "*.db-shm",
+    "*.bak",
 ]
 
 FORBIDDEN_NAMES = {
@@ -271,15 +295,15 @@ def _run_tests() -> int:
                 ".gabo/providers/ollama_local.py",
                 ".gabo/tools/tool_registry.py",
                 "ui-react/dist/index.html",
-                "docs/evidence/release_4_7_0/manifest.json",
-                "docs/evidence/release_4_7_0/session/meta.json",
+                "docs/archive/evidence/release_4_7_0/manifest.json",
+                "docs/archive/evidence/release_4_7_0/session/meta.json",
             }
             missing = sorted(required_names - names)
             assert not missing, f"missing bundle entries: {missing}"
             assert ".gabo/state/context.json" not in names
             assert any(name.startswith("ui-react/dist/") for name in names)
-            evidence_manifest = json.loads(zf.read("docs/evidence/release_4_7_0/manifest.json"))
-            evidence_meta = json.loads(zf.read("docs/evidence/release_4_7_0/session/meta.json"))
+            evidence_manifest = json.loads(zf.read("docs/archive/evidence/release_4_7_0/manifest.json"))
+            evidence_meta = json.loads(zf.read("docs/archive/evidence/release_4_7_0/session/meta.json"))
             assert evidence_manifest["contract_version"]
             assert evidence_meta["bago_version"]
             assert evidence_manifest["contract_version"] == evidence_meta["bago_version"]

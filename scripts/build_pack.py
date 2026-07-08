@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import shutil
@@ -18,11 +19,39 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 _EXCLUDE_DIRS = {
-    ".git", "__pycache__", ".pytest_cache", "node_modules",
-    "dist", ".gabo/state", ".gabo/logs", ".gabo/cache",
+    ".git",
+    ".codex",
+    ".idea",
+    ".vscode",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "coverage",
+    "htmlcov",
+    "node_modules",
+    ".bago",
+    "dist",
+    "build",
+    "output",
+    "out",
+    ".gabo/state",
+    ".gabo/logs",
+    ".gabo/cache",
+    ".gabo/backups",
 }
 _EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".log", ".tmp"}
 _EXCLUDE_FILES = {"NTUSER.DAT"}
+_EXCLUDE_GLOBS = {
+    "*.sqlite",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.db-wal",
+    "*.db-shm",
+    "*.bak",
+}
 
 
 def _version() -> str:
@@ -42,6 +71,9 @@ def _should_include(rel: Path) -> bool:
     if rel.suffix in _EXCLUDE_SUFFIXES:
         return False
     if rel.name in _EXCLUDE_FILES:
+        return False
+    rel_text = rel.as_posix()
+    if any(fnmatch.fnmatch(rel_text, pattern) for pattern in _EXCLUDE_GLOBS):
         return False
     return True
 

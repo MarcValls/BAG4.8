@@ -2,7 +2,7 @@ export type SystemState = 'confirmed' | 'loading' | 'degraded' | 'error' | 'unkn
 export type GlobalMode = 'normal' | 'focus' | 'review';
 export type ChatMode = 'live' | 'trace';
 export type InspectorLevel = 'summary' | 'detail' | 'raw';
-export type ActiveSection = 'home' | 'chat' | 'workspace' | 'graph' | 'pipeline' | 'evidence' | 'context' | 'system';
+export type ActiveSection = 'home' | 'chat' | 'workspace' | 'graph' | 'pipeline' | 'evidence' | 'context' | 'system' | 'providers';
 
 export interface BackendHealth {
   ok?: boolean;
@@ -190,6 +190,8 @@ export interface UiBootstrapSnapshot {
     mirrorReady?: boolean;
     manifestState: 'valid' | 'invalid' | 'missing' | 'legacy' | 'unknown';
     linkedToSession: boolean;
+    seedSuggested?: boolean;
+    seedReason?: string;
   };
   session: {
     id?: string;
@@ -220,6 +222,7 @@ export interface UiBootstrapSnapshot {
     canInitializeWorkspace: boolean;
     canLinkWorkspace: boolean;
     canRepairWorkspace: boolean;
+    canSeedWorkspace: boolean;
     canRunTools: boolean;
     canInspectContext: boolean;
     canViewEvidence: boolean;
@@ -293,6 +296,33 @@ export interface BackendSession {
 export interface BackendProviders {
   providers?: Array<Record<string, unknown>>;
   mode?: string;
+}
+
+export interface BackendRouterEntry {
+  provider?: string;
+  model_id?: string;
+  wire_name?: string;
+  context_tokens?: number;
+  best_for?: string;
+  available?: boolean;
+  selected?: boolean;
+  key?: string;
+  [key: string]: unknown;
+}
+
+export interface BackendRouterList {
+  entries?: BackendRouterEntry[];
+  selected_count?: number;
+  auto_switch?: boolean;
+  last_pick?: string;
+  last_pick_at?: string;
+  [key: string]: unknown;
+}
+
+export interface BackendRouterPolicy extends BackendRouterList {
+  ok?: boolean;
+  state_root?: string;
+  selected?: string[];
 }
 
 export interface BackendMenu {
@@ -378,4 +408,6 @@ export interface UiBootData {
   evidence?: Record<string, unknown>;
   jobs?: Record<string, unknown>;
   schedule?: Record<string, unknown>;
+  router_list?: BackendRouterList;
+  router_policy?: BackendRouterPolicy;
 }

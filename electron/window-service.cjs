@@ -1,4 +1,7 @@
 const { app, BrowserWindow, shell } = require('electron');
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
 const {
   MANAGER_HTML,
   REACT_HTML,
@@ -7,6 +10,89 @@ const {
   SMOKE_TEST,
   isExternalUrl
 } = require('./environment.cjs');
+
+let fallbackReactServer = null;
+let fallbackReactServerUrl = '';
+
+function getMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.html': return 'text/html; charset=utf-8';
+    case '.js': return 'application/javascript; charset=utf-8';
+    case '.css': return 'text/css; charset=utf-8';
+    case '.json': return 'application/json; charset=utf-8';
+    case '.svg': return 'image/svg+xml';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.ico': return 'image/x-icon';
+    case '.woff': return 'font/woff';
+    case '.woff2': return 'font/woff2';
+    default: return 'application/octet-stream';
+  }
+}
+
+function resolveFallbackFile(urlPath) {
+  const distRoot = path.dirname(REACT_HTML);
+  const cleanPath = String(urlPath || '/').split('?')[0].split('#')[0];
+  const normalized = decodeURIComponent(cleanPath === '/' ? '/index.html' : cleanPath);
+  const target = path.normalize(path.join(distRoot, normalized.replace(/^\/+/, '')));
+  const relative = path.relative(distRoot, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return target;
+}
+
+function ensureFallbackReactServer() {
+  if (fallbackReactServerUrl) {
+    return Promise.resolve(fallbackReactServerUrl);
+  }
+
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const target = resolveFallbackFile(req.url || '/');
+      if (!target) {
+        res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end('Forbidden');
+        return;
+      }
+
+      const exists = fs.existsSync(target);
+      const filePath = exists ? target : path.join(path.dirname(REACT_HTML), 'index.html');
+      try {
+        const body = fs.readFileSync(filePath);
+        res.writeHead(200, {
+          'content-type': getMimeType(filePath),
+          'cache-control': 'no-store'
+        });
+        res.end(body);
+      } catch (error) {
+        res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end(`Fallback UI failed: ${error && error.message ? error.message : error}`);
+      }
+    });
+
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address !== 'object') {
+        reject(new Error('No se pudo arrancar el servidor local de fallback'));
+        return;
+      }
+      fallbackReactServer = server;
+      fallbackReactServerUrl = `http://127.0.0.1:${address.port}/`;
+      resolve(fallbackReactServerUrl);
+    });
+  });
+}
+
+app.once('before-quit', () => {
+  if (fallbackReactServer) {
+    try { fallbackReactServer.close(); } catch {}
+    fallbackReactServer = null;
+    fallbackReactServerUrl = '';
+  }
+});
 
 function createManagerWindow(options = {}) {
   const getRuntimeService = typeof options.getRuntimeService === 'function' ? options.getRuntimeService : null;
@@ -45,7 +131,7 @@ function createManagerWindow(options = {}) {
   });
 
   // Load React through the BAGO web server so API calls are same-origin.
-  // Fall back to file:// only as a visible degraded surface.
+  // Fall back to a local static HTTP server so the renderer still mounts.
   (async () => {
     if (getRuntimeService) {
       try {
@@ -53,10 +139,11 @@ function createManagerWindow(options = {}) {
         await win.loadURL(state.url);
         return;
       } catch (error) {
-        console.error(`BAGO React web server failed, falling back to file UI: ${error && error.message ? error.message : error}`);
+        console.error(`BAGO React web server failed, falling back to local static UI: ${error && error.message ? error.message : error}`);
       }
     }
-    await win.loadFile(REACT_HTML);
+    const fallbackUrl = await ensureFallbackReactServer();
+    await win.loadURL(fallbackUrl);
   })();
   if (SMOKE_TEST) {
     const timeout = setTimeout(() => {

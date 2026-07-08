@@ -21,6 +21,11 @@ from bago_core.versioning import read_release_version
 
 INCLUDE_FILES = [
     ".gitignore",
+    ".gabo/seed.py",
+    ".gabo/tools.manifest.json",
+    ".bago/core/context_store.py",
+    ".bago/core/session_manager.py",
+    ".bago/tools/orchestrator_v4.py",
     "ir_types.py",
     "protocol.py",
     "registry.py",
@@ -31,6 +36,9 @@ INCLUDE_FILES = [
     "package-lock.json",
     "package.json",
     "release_version.txt",
+    "ui-react/package-lock.json",
+    "ui-react/package.json",
+    "ui-react/tsconfig.json",
     "BAGO.pyproj",
     "ABRIR_UI_BAGO.cmd",
     "ABRIR_ELECTRON_BAGO.cmd",
@@ -73,21 +81,38 @@ INCLUDE_DIRS = [
 
 EXCLUDED_PARTS = {
     ".git",
+    ".codex",
+    ".idea",
+    ".vscode",
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "coverage",
+    "htmlcov",
     "node_modules",
     ".vite",
+    ".bago",
 }
 
 EXCLUDED_PREFIXES = [
+    ".bago/backups",
+    ".bago/state",
+    ".bago/logs",
+    ".bago/cache",
+    ".gabo/backups",
     ".gabo/state",
     ".gabo/logs",
+    ".gabo/cache",
     ".gabo/launch",
     ".gabo/tools/.gabo",
     "PLAN_VERTICE",
     "release",
     "dist",
     "build",
+    "output",
+    "out",
     "tools/sprints",
 ]
 
@@ -95,6 +120,13 @@ EXCLUDED_GLOBS = [
     "*.py.new",
     "bago_core/parsers_legacy_*.py",
     "tools/_diff_*.py",
+    "*.sqlite",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.db-wal",
+    "*.db-shm",
+    "*.bak",
 ]
 
 FORBIDDEN_NAMES = {
@@ -102,6 +134,12 @@ FORBIDDEN_NAMES = {
     "install_config.json",
     ".env",
     ".env.local",
+}
+
+ALLOWED_LEGACY_PATHS = {
+    ".bago/core/context_store.py",
+    ".bago/core/session_manager.py",
+    ".bago/tools/orchestrator_v4.py",
 }
 
 
@@ -126,12 +164,14 @@ def normalize_release_version(value: str) -> str:
 
 
 def is_excluded(relative: Path) -> bool:
+    rel = rel_posix(relative)
+    if rel in ALLOWED_LEGACY_PATHS:
+        return False
     parts = set(relative.parts)
     if parts & EXCLUDED_PARTS:
         return True
     if relative.name in FORBIDDEN_NAMES:
         return True
-    rel = rel_posix(relative)
     if any(fnmatch.fnmatch(rel, pattern) for pattern in EXCLUDED_GLOBS):
         return True
     return any(rel == prefix or rel.startswith(prefix + "/") for prefix in EXCLUDED_PREFIXES)
@@ -372,8 +412,8 @@ def _run_tests() -> int:
                 "docs/contracts/bago_v4_governance_contract.md",
                 "docs/contracts/bago_v4_engineering_contract.md",
                 "ui-react/dist/index.html",
-                "docs/evidence/release_4_7_0/manifest.json",
-                "docs/evidence/release_4_7_0/session/meta.json",
+                "docs/archive/evidence/release_4_7_0/manifest.json",
+                "docs/archive/evidence/release_4_7_0/session/meta.json",
             }
             missing = sorted(required_names - names)
             assert not missing, f"missing bundle entries: {missing}"
@@ -387,8 +427,8 @@ def _run_tests() -> int:
                 or "win-unpacked/resources" in name
             )
             assert not leaked, f"recursive/build artifacts leaked into package: {leaked[:5]}"
-            evidence_manifest = json.loads(zf.read("docs/evidence/release_4_7_0/manifest.json"))
-            evidence_meta = json.loads(zf.read("docs/evidence/release_4_7_0/session/meta.json"))
+            evidence_manifest = json.loads(zf.read("docs/archive/evidence/release_4_7_0/manifest.json"))
+            evidence_meta = json.loads(zf.read("docs/archive/evidence/release_4_7_0/session/meta.json"))
             assert evidence_manifest["contract_version"] == "4.7.0"
             assert evidence_meta["bago_version"] == "4.7.0"
         extract_dir = Path(td) / "extract"
@@ -428,3 +468,4 @@ if __name__ == "__main__":
     if "--test" in sys.argv:
         raise SystemExit(_run_tests())
     raise SystemExit(main())
+

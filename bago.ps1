@@ -1,15 +1,41 @@
 #!/usr/bin/env pwsh
 # BAGO global launcher — despacha por sub-comando:
-#   bago              → instalación de trabajo (%LOCALAPPDATA%\BAGO)
+#   bago              → instalación de trabajo (%BAGO_USER_ROOT% o perfil local)
 #   bago des          → plataforma de desarrollo (BAGO source)
-#   bago ign          → plataforma de lanzamiento (BAGO install + %LOCALAPPDATA%\BAGO\launch)
+#   bago ign          → plataforma de lanzamiento (BAGO install + root de usuario)
 #   bago sup <verb>   → supervisor always-on (start|stop|status|attach)
 # Sin sub-comando = "bago" (instalación de trabajo) para retro-compatibilidad.
 $ErrorActionPreference = 'Stop'
-$userBago  = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'BAGO' } else { Join-Path $env:USERPROFILE 'AppData\Local\BAGO' }
-$legacyBago = Join-Path $env:USERPROFILE '.bago'
-$srcBago   = "$env:USERPROFILE\BAGO"
-$instBago  = 'C:\Program Files\BAGO'
+$userBago  = $null
+[string]$userProfileRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+if ([string]::IsNullOrWhiteSpace($userProfileRoot)) { $userProfileRoot = [System.IO.Path]::GetTempPath() }
+$legacyBago = Join-Path $userProfileRoot '.bago'
+$srcBago   = Join-Path $userProfileRoot 'BAGO'
+
+function Get-DefaultUserRoot {
+    [string]$override = $env:BAGO_USER_ROOT
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return [System.IO.Path]::GetFullPath($override) }
+    [string]$legacyOverride = $env:BAGO_LEGACY_USER_ROOT
+    if (-not [string]::IsNullOrWhiteSpace($legacyOverride)) { return [System.IO.Path]::GetFullPath($legacyOverride) }
+    if ($env:LOCALAPPDATA) { return (Join-Path $env:LOCALAPPDATA 'BAGO') }
+    [string]$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+    if (-not [string]::IsNullOrWhiteSpace($localAppData)) { return (Join-Path $localAppData 'BAGO') }
+    [string]$userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+    if (-not [string]::IsNullOrWhiteSpace($userProfile)) { return (Join-Path $userProfile 'AppData\Local\BAGO') }
+    return (Join-Path ([System.IO.Path]::GetTempPath()) 'BAGO')
+}
+
+function Get-DefaultInstallDir {
+    [string]$override = $env:BAGO_INSTALL_DIR
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return [System.IO.Path]::GetFullPath($override) }
+    [string]$programFilesRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = $env:ProgramFiles }
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.IO.Path]::GetTempPath() }
+    return (Join-Path $programFilesRoot 'BAGO')
+}
+
+$userBago = Get-DefaultUserRoot
+$instBago  = Get-DefaultInstallDir
 $activeBago = $instBago
 $supScript = Join-Path $srcBago 'scripts\bago_supervisor.py'
 

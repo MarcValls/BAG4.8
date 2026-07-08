@@ -12,7 +12,7 @@ from pathlib import Path
 
 BAGO_ROOT = Path(__file__).resolve().parent
 CURRENT_RELEASE = (BAGO_ROOT / "release_version.txt").read_text(encoding="utf-8").strip().lstrip("v")
-CURRENT_EVIDENCE_DIR = "docs/evidence/release_4_7_0"
+CURRENT_EVIDENCE_DIR = "docs/archive/evidence/release_4_7_0"
 EXPECTED_EVIDENCE_RELEASE = "4.7.0"
 sys.path.insert(0, str(BAGO_ROOT))
 

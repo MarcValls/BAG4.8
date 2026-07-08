@@ -27,7 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo = Path(args.repo)
     if not repo.exists():
-        print(f"repo missing: {repo}")
+        print(f"path missing: {repo}")
         return 1
     failures: list[str] = []
     patterns = ["*.md", "*.ps1", "*.cmd", "*.py", "*.json"]

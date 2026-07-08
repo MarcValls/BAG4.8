@@ -4,6 +4,8 @@ import type {
   BackendHistory,
   BackendMenu,
   BackendProviders,
+  BackendRouterList,
+  BackendRouterPolicy,
   BackendRoutes,
   ChatMode,
   ChatTurn,
@@ -11,17 +13,33 @@ import type {
   InspectorLevel,
   SelectionRecord,
   UiAction,
+  OpeningDecision,
   UiBootstrapSnapshot
 } from '@/contracts/backend';
+import type { ModuleAction, ModuleBridge } from '@/contracts/modules';
 import { safeJson } from '@/api/client';
 import { Icon, type IconName } from '@/shared/Icon';
+import { ProviderCenterModule, type ProviderCenterProvider, type ProviderCenterRouterEntry } from '@/modules/provider-center';
+import { createModuleRegistry } from '@/modules/module-registry';
 
 interface Props {
   section: 'home' | 'chat' | 'workspace' | 'graph' | 'pipeline' | 'evidence' | 'context' | 'system';
   snapshot: UiBootstrapSnapshot | null;
+  opening: OpeningDecision;
+  booting: boolean;
+  workspaceHint?: string;
+  apiBase: string;
+  apiToken: string;
+  onApiConfigChange: (patch: { apiBase?: string; apiToken?: string }) => void;
+  onPrimary: () => void;
+  onContinue: () => void;
+  onChooseWorkspace: () => void;
+  onOpenPalette: () => void;
+  onRefresh: () => void;
   menu: BackendMenu | null;
   routes: BackendRoutes | null;
   providers: BackendProviders | null;
+  router: { list: BackendRouterList | null; policy: BackendRouterPolicy | null } | null;
   history: BackendHistory | null;
   files: Record<string, unknown> | null;
   commandResults: Record<string, BackendCommandResult | null>;
@@ -40,7 +58,12 @@ interface Props {
   onSetSection: (section: Props['section']) => void;
   onSetChatMode: (mode: ChatMode) => void;
   onSetGlobalMode: (mode: GlobalMode) => void;
-  onChooseWorkspace: () => void;
+  onRefreshRouter: () => Promise<void>;
+  onToggleRouter: (key: string) => Promise<void>;
+  onSetRouterAuto: (enabled: boolean) => Promise<void>;
+  onConfigureProvider?: (provider: string, config: { enabled?: boolean; base_url?: string; api_key?: string; model?: string }) => Promise<void>;
+  onSetSessionModel?: (modelKey: string | null) => Promise<void>;
+  sessionModel?: string | null;
 }
 
 type RecordValue = Record<string, unknown>;
@@ -307,6 +330,10 @@ function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.map((entry) => String(entry)).filter(Boolean) : [];
 }
 
+function readText(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function summarizeMessage(message: RecordValue): string {
   return String(message.content || message.text || message.message || '').trim();
 }
@@ -413,6 +440,7 @@ export function ControlSections(props: Props) {
   const explorerTree = useMemo(() => buildExplorerTree(visibleFiles), [visibleFiles]);
 
   const historyMessages = useMemo(() => readMessages(props.history), [props.history]);
+  const turns = props.turns;
   const evidenceItems = Array.isArray(snapshot?.evidence) ? snapshot.evidence : [];
   const jobItems = Array.isArray(snapshot?.jobs) ? snapshot.jobs : [];
   const planResult = props.commandResults.plan;
@@ -425,6 +453,11 @@ export function ControlSections(props: Props) {
   const blockedCount = steps.filter((step) => statusTone(String(step.status || 'pending')) === 'blocked').length;
   const failedCount = steps.filter((step) => statusTone(String(step.status || 'pending')) === 'error').length;
   const selectedWorkspaceFile = useMemo(() => visibleFiles.find((entry) => String(entry.path || '') === workspaceActivePath) || null, [visibleFiles, workspaceActivePath]);
+  const providers = props.providers?.providers || [];
+  const routerEntries = props.router?.policy?.entries || props.router?.list?.entries || [];
+  const routerAuto = Boolean(props.router?.policy?.auto_switch ?? props.router?.list?.auto_switch);
+  const routerSelectedCount = props.router?.policy?.selected_count ?? props.router?.list?.selected_count ?? routerEntries.filter((entry) => Boolean(entry.selected)).length;
+  const routerLastPick = String(props.router?.policy?.last_pick || props.router?.list?.last_pick || '—');
 
   useEffect(() => {
     const topLevel = explorerTree.filter((node) => node.kind === 'directory').map((node) => node.path);
@@ -463,7 +496,8 @@ export function ControlSections(props: Props) {
     );
     try {
       const result = await props.onReadFile(clean);
-      const content = String(result?.content || result?.data?.content || result?.text || '');
+      const record = result && typeof result === 'object' && !Array.isArray(result) ? result as RecordValue : {};
+      const content = readText(record.content) || readText((record.data as RecordValue | undefined)?.content) || readText(record.text);
       if (content && !isPlainTextContent(content)) {
         setWorkspaceContent('Este archivo parece binario o no es texto legible.');
         setWorkspaceContentKind(languageLabelForPath(clean));
@@ -499,20 +533,488 @@ export function ControlSections(props: Props) {
     return workspaceExpanded.includes(path);
   }
 
+  const moduleRegistry = useMemo(() => createModuleRegistry([
+    {
+      id: 'home',
+      label: 'Inicio',
+      description: 'Resumen del estado y accesos rápidos',
+      state: snapshot?.system.state || 'unknown',
+      capabilities: ['read', 'inspect', 'navigate'],
+      actions: [
+        { id: 'open-chat', label: 'Ir a chat', kind: 'navigate', enabled: true, payload: { section: 'chat' } },
+        { id: 'open-workspace', label: 'Ir a workspace', kind: 'navigate', enabled: true, payload: { section: 'workspace' } },
+      ],
+      read: () => ({
+        moduleId: 'home',
+        label: 'Inicio',
+        state: snapshot?.system.state || 'unknown',
+        summary: `${snapshot?.system.state || 'unknown'} · ${snapshot?.workspace.root || props.workspaceHint || 'sin workspace confirmado'}`,
+        data: {
+          workspace: snapshot?.workspace,
+          model: snapshot?.model,
+          permissions: snapshot?.permissions
+        }
+      }),
+      inspect: () => {
+        const selection = buildSelection(
+          'home',
+          'module-home',
+          'Inicio',
+          snapshot?.workspace.root || props.workspaceHint || 'Resumen de entrada',
+          [
+            `state: ${snapshot?.system.state || 'unknown'}`,
+            `workspace: ${snapshot?.workspace.root || 'unknown'}`,
+            `model: ${snapshot?.model.effectiveModel || snapshot?.model.configuredModel || 'unknown'}`
+          ],
+          { snapshot, workspaceHint: props.workspaceHint }
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'home', selection, message: 'Inicio inspeccionado', data: snapshot };
+      }
+    },
+    {
+      id: 'chat',
+      label: 'Chat',
+      description: 'Conversación principal y acciones de lectura/escritura',
+      state: snapshot?.permissions.canChat ? 'ready' : 'blocked',
+      capabilities: ['read', 'write', 'inspect', 'navigate'],
+      actions: [
+        { id: 'send-draft', label: 'Enviar borrador', kind: 'write', enabled: Boolean(snapshot?.permissions.canChat && (props.drafts.chat || '').trim()), payload: { text: props.drafts.chat || '' } },
+        { id: 'inspect-turns', label: 'Inspeccionar chat', kind: 'inspect', enabled: true, payload: { target: 'turns' } },
+        { id: 'open-context', label: 'Adjuntar contexto', kind: 'navigate', enabled: Boolean(snapshot?.permissions.canInspectContext), payload: { command: '/context attach' } }
+      ],
+      read: () => ({
+        moduleId: 'chat',
+        label: 'Chat',
+        state: snapshot?.permissions.canChat ? 'ready' : 'blocked',
+        summary: `${turns.length} turnos · ${snapshot?.permissions.canChat ? 'autorizado' : 'bloqueado'}`,
+        data: {
+          turns,
+          draft: props.drafts.chat || '',
+          canChat: snapshot?.permissions.canChat ?? false
+        }
+      }),
+      write: async (payload) => {
+        const text = String(payload.text || payload.message || payload.command || '').trim();
+        if (!text) {
+          return { moduleId: 'chat', ok: false, message: 'Sin texto para enviar' };
+        }
+        if (!snapshot?.permissions.canChat) {
+          return { moduleId: 'chat', ok: false, message: 'Chat bloqueado por backend' };
+        }
+        if (payload.command || payload.section === 'context') {
+          await props.onRunContextCommand(text);
+          return { moduleId: 'chat', ok: true, message: text };
+        }
+        await props.onSendChat(text);
+        return { moduleId: 'chat', ok: true, message: text };
+      },
+      inspect: () => {
+        const latest = turns[turns.length - 1];
+        const selection = buildSelection(
+          latest?.id || 'chat',
+          'module-chat',
+          'Chat',
+          latest?.text || 'Sin mensajes recientes',
+          [
+            `turns: ${turns.length}`,
+            `canChat: ${String(snapshot?.permissions.canChat ?? false)}`,
+            `mode: ${props.chatMode}`
+          ],
+          { turns, draft: props.drafts.chat || '' }
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'chat', selection, message: 'Chat inspeccionado', data: turns };
+      }
+    },
+    {
+      id: 'workspace',
+      label: 'Workspace',
+      description: 'Explorador, filtros y archivo activo',
+      state: workspaceContentState,
+      capabilities: ['read', 'write', 'inspect', 'navigate', 'select'],
+      actions: [
+        { id: 'set-all', label: 'Ver todo', kind: 'write', enabled: true, payload: { filter: 'all' } },
+        { id: 'open-picker', label: 'Elegir workspace', kind: 'navigate', enabled: true, payload: { command: 'open-picker' } },
+        { id: 'inspect-file', label: 'Inspeccionar archivo', kind: 'inspect', enabled: Boolean(workspaceActivePath), payload: { target: workspaceActivePath } }
+      ],
+      read: () => ({
+        moduleId: 'workspace',
+        label: 'Workspace',
+        state: workspaceContentState,
+        summary: `${visibleFiles.length} archivos visibles · ${workspaceActivePath || 'sin archivo activo'}`,
+        data: {
+          query: workspaceQuery,
+          filter: workspaceFilter,
+          expanded: workspaceExpanded,
+          activePath: workspaceActivePath,
+          contentPath: workspaceContentPath,
+          contentKind: workspaceContentKind,
+          contentState: workspaceContentState
+        }
+      }),
+      write: async (payload) => {
+        if (payload.filter) {
+          setWorkspaceFilter(String(payload.filter) as WorkspaceFilter);
+        }
+        if (typeof payload.query === 'string') {
+          setWorkspaceQuery(payload.query);
+        }
+        if (typeof payload.path === 'string' && payload.path.trim()) {
+          await openWorkspaceFile(payload.path);
+        }
+        return { moduleId: 'workspace', ok: true, message: 'Workspace actualizado' };
+      },
+      inspect: () => {
+        const target = selectedWorkspaceFile || { path: workspaceActivePath, name: workspaceContentPath };
+        const selection = buildSelection(
+          String(target?.path || workspaceActivePath || 'workspace'),
+          'module-workspace',
+          String(target?.name || workspaceContentPath || 'Workspace'),
+          workspaceContent.slice(0, 220) || 'Sin contenido activo',
+          [
+            `filter: ${workspaceFilter}`,
+            `query: ${workspaceQuery || '—'}`,
+            `state: ${workspaceContentState}`
+          ],
+          target
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'workspace', selection, message: 'Workspace inspeccionado', data: target };
+      }
+    },
+    {
+      id: 'graph',
+      label: 'Nodos',
+      description: 'Vista de grafo y agrupación',
+      state: graphLayout,
+      capabilities: ['read', 'write', 'inspect', 'select'],
+      actions: [
+        { id: 'layout-hierarchical', label: 'Jerárquico', kind: 'write', enabled: true, payload: { layout: 'hierarchical' } },
+        { id: 'layout-radial', label: 'Radial', kind: 'write', enabled: true, payload: { layout: 'radial' } },
+        { id: 'toggle-filter', label: 'Cambiar filtro', kind: 'write', enabled: true, payload: { filtered: !graphFiltered } }
+      ],
+      read: () => ({
+        moduleId: 'graph',
+        label: 'Nodos',
+        state: graphLayout,
+        summary: `${graphLayout} · ${graphFiltered ? 'filtrado' : 'sin filtro'}`,
+        data: { layout: graphLayout, filtered: graphFiltered }
+      }),
+      write: async (payload) => {
+        if (payload.layout) setGraphLayout(String(payload.layout) as GraphLayout);
+        if (typeof payload.filtered === 'boolean') setGraphFiltered(payload.filtered);
+        return { moduleId: 'graph', ok: true, message: 'Grafo actualizado' };
+      },
+      inspect: () => {
+        const selection = buildSelection(
+          'graph',
+          'module-graph',
+          'Nodos',
+          `${graphLayout} · ${graphFiltered ? 'filtrado' : 'sin filtro'}`,
+          [
+            `layout: ${graphLayout}`,
+            `filtered: ${String(graphFiltered)}`
+          ],
+          { layout: graphLayout, filtered: graphFiltered }
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'graph', selection, message: 'Grafo inspeccionado', data: { layout: graphLayout, filtered: graphFiltered } };
+      }
+    },
+    {
+      id: 'pipeline',
+      label: 'Pipeline',
+      description: 'Plan, tareas y estado de ejecución',
+      state: pipelineStatus,
+      capabilities: ['read', 'write', 'inspect'],
+      actions: [
+        { id: 'run-plan', label: 'Ejecutar tarea', kind: 'write', enabled: true, payload: { task: props.drafts.pipeline || '' } },
+        { id: 'inspect-plan', label: 'Inspeccionar plan', kind: 'inspect', enabled: true, payload: { target: 'plan' } }
+      ],
+      read: () => ({
+        moduleId: 'pipeline',
+        label: 'Pipeline',
+        state: pipelineStatus,
+        summary: `${steps.length} pasos · ${doneCount} hechos · ${blockedCount} bloqueados`,
+        data: {
+          status: pipelineStatus,
+          steps,
+          doneCount,
+          blockedCount,
+          failedCount
+        }
+      }),
+      write: async (payload) => {
+        const task = String(payload.task || payload.text || payload.command || '').trim();
+        if (!task) return { moduleId: 'pipeline', ok: false, message: 'Sin tarea para ejecutar' };
+        await props.onRunPlanTask(task);
+        return { moduleId: 'pipeline', ok: true, message: task };
+      },
+      inspect: () => {
+        const selection = buildSelection(
+          'pipeline',
+          'module-pipeline',
+          'Pipeline',
+          pipelineStatus,
+          [
+            `steps: ${steps.length}`,
+            `done: ${doneCount}`,
+            `blocked: ${blockedCount}`,
+            `failed: ${failedCount}`
+          ],
+          plan
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'pipeline', selection, message: 'Pipeline inspeccionado', data: plan };
+      }
+    },
+    {
+      id: 'evidence',
+      label: 'Evidencia',
+      description: 'Receipts, historial y comparación',
+      state: evidenceCompare ? 'compare' : 'ready',
+      capabilities: ['read', 'write', 'inspect'],
+      actions: [
+        { id: 'toggle-compare', label: 'Comparar', kind: 'toggle', enabled: true, payload: { compare: !evidenceCompare } },
+        { id: 'inspect-latest', label: 'Última evidencia', kind: 'inspect', enabled: true, payload: { target: 'latest' } }
+      ],
+      read: () => ({
+        moduleId: 'evidence',
+        label: 'Evidencia',
+        state: evidenceCompare ? 'compare' : 'ready',
+        summary: `${evidenceItems.length || historyMessages.length} registros`,
+        data: { evidenceCompare, evidenceItems, historyMessages }
+      }),
+      write: async (payload) => {
+        if (typeof payload.compare === 'boolean') setEvidenceCompare(payload.compare);
+        return { moduleId: 'evidence', ok: true, message: 'Estado de evidencia actualizado' };
+      },
+      inspect: () => {
+        const latest = evidenceItems.length ? (evidenceItems[0] as RecordValue) : historyMessages.length ? historyMessages[historyMessages.length - 1] : (asRecord(snapshot?.context) || {});
+        const receiptId = snapshot?.context.receiptId || String(latest.id || latest.receipt_id || latest.envelope_id || 'No disponible');
+        const selection = buildSelection(
+          receiptId,
+          'module-evidence',
+          'Última evidencia',
+          String(latest.message || latest.text || latest.summary || summarizeMessage(latest) || `Receipt ${receiptId}`),
+          [
+            `status: ${snapshot?.context.certificationStatus || snapshot?.context.state || 'unknown'}`,
+            `source: ${String(latest.source || latest.origin || 'backend')}`
+          ],
+          latest
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'evidence', selection, message: 'Evidencia inspeccionada', data: latest };
+      }
+    },
+    {
+      id: 'context',
+      label: 'Contexto',
+      description: 'Presupuesto y certificación del contexto',
+      state: snapshot?.context.state || 'unknown',
+      capabilities: ['read', 'write', 'inspect'],
+      actions: [
+        { id: 'measure', label: 'Medir', kind: 'write', enabled: Boolean(snapshot?.permissions.canInspectContext), payload: { command: '/context measure' } },
+        { id: 'certify', label: 'Certificar', kind: 'write', enabled: Boolean(snapshot?.permissions.canInspectContext), payload: { command: '/context certify' } }
+      ],
+      read: () => ({
+        moduleId: 'context',
+        label: 'Contexto',
+        state: snapshot?.context.state || 'unknown',
+        summary: `${snapshot?.context.occupied ?? 0}/${snapshot?.context.limit ?? 0} tokens`,
+        data: snapshot?.context
+      }),
+      write: async (payload) => {
+        const command = String(payload.command || '').trim();
+        if (!command) {
+          if (typeof payload.expanded === 'boolean') setContextExpanded(payload.expanded);
+          return { moduleId: 'context', ok: true, message: 'Estado de contexto actualizado' };
+        }
+        await props.onRunContextCommand(command);
+        return { moduleId: 'context', ok: true, message: command };
+      },
+      inspect: () => {
+        const occupied = snapshot?.context.occupied ?? 0;
+        const limit = snapshot?.context.limit ?? 0;
+        const reserve = snapshot?.context.reserve ?? 0;
+        const selection = buildSelection(
+          snapshot?.context.receiptId || 'context-receipt',
+          'module-context',
+          'Contexto',
+          `Estado ${snapshot?.context.state || 'unknown'} · revisión ${String(snapshot?.context.revision || 'unknown')}`,
+          [`occupied: ${occupied}`, `reserve: ${reserve}`, `limit: ${limit}`],
+          snapshot?.context
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'context', selection, message: 'Contexto inspeccionado', data: snapshot?.context };
+      }
+    },
+    {
+      id: 'system',
+      label: 'Sistema',
+      description: 'Estado general, router y rutas backend',
+      state: routerSelectedCount > 0 ? 'confirmed' : 'blocked',
+      capabilities: ['read', 'write', 'inspect', 'refresh', 'toggle'],
+      actions: [
+        { id: 'refresh-router', label: 'Refrescar router', kind: 'refresh', enabled: true },
+        { id: 'router-auto', label: 'Auto-router', kind: 'toggle', enabled: true, payload: { enabled: routerAuto } },
+        { id: 'open-system', label: 'Abrir sistema', kind: 'navigate', enabled: true, payload: { section: 'system' } }
+      ],
+      read: () => ({
+        moduleId: 'system',
+        label: 'Sistema',
+        state: routerSelectedCount > 0 ? 'confirmed' : 'blocked',
+        summary: `${routerSelectedCount} seleccionados · ${routerLastPick}`,
+        data: {
+          snapshot,
+          routerEntries,
+          routerAuto,
+          routerSelectedCount,
+          routerLastPick,
+          providers
+        }
+      }),
+      write: async (payload) => {
+        if (typeof payload.enabled === 'boolean') {
+          await props.onSetRouterAuto(payload.enabled);
+        }
+        if (typeof payload.key === 'string' && payload.key.trim()) {
+          await props.onToggleRouter(payload.key);
+        }
+        if (payload.refresh) {
+          await props.onRefreshRouter();
+        }
+        return { moduleId: 'system', ok: true, message: 'Sistema actualizado' };
+      },
+      inspect: () => {
+        const selection = buildSelection(
+          'system',
+          'module-system',
+          'Sistema',
+          `${routerSelectedCount} seleccionados · ${routerLastPick}`,
+          [
+            `router_auto: ${String(routerAuto)}`,
+            `selected: ${String(routerSelectedCount)}`
+          ],
+          { snapshot, routerEntries, routerAuto, routerSelectedCount, routerLastPick }
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'system', selection, message: 'Sistema inspeccionado', data: snapshot };
+      }
+    },
+    {
+      id: 'provider-center',
+      label: 'Centro de proveedores',
+      description: 'Catálogo reutilizable de proveedores y modelos',
+      state: providers.length ? 'ready' : 'empty',
+      capabilities: ['read', 'write', 'inspect', 'register', 'toggle'],
+      actions: [
+        { id: 'register-provider', label: 'Registrar proveedor', kind: 'register', enabled: true },
+        { id: 'register-model', label: 'Registrar modelo', kind: 'register', enabled: true },
+        { id: 'toggle-router-auto', label: 'Auto-router', kind: 'toggle', enabled: true, payload: { enabled: routerAuto } }
+      ],
+      read: () => ({
+        moduleId: 'provider-center',
+        label: 'Centro de proveedores',
+        state: providers.length ? 'ready' : 'empty',
+        summary: `${providers.length} proveedores · ${routerEntries.length} rutas de router`,
+        data: { providers, routerEntries, routerAuto, routerSelectedCount, routerLastPick }
+      }),
+      write: async (payload) => {
+        if (typeof payload.enabled === 'boolean') {
+          await props.onSetRouterAuto(payload.enabled);
+        }
+        if (typeof payload.key === 'string' && payload.key.trim()) {
+          await props.onToggleRouter(payload.key);
+        }
+        return { moduleId: 'provider-center', ok: true, message: 'Centro de proveedores actualizado' };
+      },
+      inspect: () => {
+        const selection = buildSelection(
+          'provider-center',
+          'module-provider-center',
+          'Centro de proveedores',
+          `${providers.length} proveedores`,
+          [
+            `router_entries: ${String(routerEntries.length)}`,
+            `auto: ${String(routerAuto)}`
+          ],
+          { providers, routerEntries, routerAuto, routerSelectedCount, routerLastPick }
+        );
+        props.onInspect(selection, 'detail');
+        return { moduleId: 'provider-center', selection, message: 'Centro de proveedores inspeccionado', data: providers };
+      }
+    }
+  ]), [
+    evidenceCompare,
+    evidenceItems,
+    failedCount,
+    graphFiltered,
+    graphLayout,
+    historyMessages,
+    plan,
+    pipelineStatus,
+    providers,
+    props,
+    props.drafts.chat,
+    props.drafts.pipeline,
+    routerAuto,
+    routerEntries,
+    routerLastPick,
+    routerSelectedCount,
+    selectedWorkspaceFile,
+    snapshot,
+    steps,
+    snapshot?.permissions.canChat,
+    snapshot?.permissions.canInspectContext,
+    turns,
+    visibleFiles,
+    workspaceActivePath,
+    workspaceContent,
+    workspaceContentKind,
+    workspaceContentPath,
+    workspaceContentState,
+    workspaceExpanded,
+    workspaceFilter,
+    workspaceQuery
+  ]);
+
   if (props.section === 'home') {
     const canChat = snapshot?.permissions.canChat ?? false;
+    const workspace = snapshot?.workspace.root || props.workspaceHint || 'No confirmado';
+    const model = snapshot?.model.effectiveModel || snapshot?.model.configuredModel || 'No confirmado';
+    const isOffline = !snapshot?.system.backendAvailable;
     return (
       <div className="home-surface">
-        <section className="home-hero">
-          <div>
-            <h2>{snapshot?.system.objective || '¿Qué quieres resolver ahora?'}</h2>
-            <p>Elige una entrada y continúa desde ahí.</p>
-          </div>
-          <div className="home-hero-actions">
-            <ActionButton icon="plus" primary onClick={() => props.onSetSection('chat')} disabled={!canChat}>Nuevo flujo</ActionButton>
-            <ActionButton icon="history" onClick={() => props.onSetSection(historyMessages.length ? 'chat' : 'workspace')}>Abrir último trabajo</ActionButton>
-          </div>
-        </section>
+        <div className="home-snapshot-grid">
+          <Metric label="Workspace" value={workspace} hint={snapshot?.workspace.manifestState || 'sin validar'} icon="workspace" />
+          <Metric label="Modelo" value={model} hint={snapshot?.provider || 'sin provider'} icon="model" />
+          <Metric label="Estado" value={snapshot?.system.backendAvailable ? 'Backend activo' : 'Backend no disponible'} hint={snapshot?.system.state || ''} icon="system" />
+        </div>
+
+        <div className="opening-actions">
+          <ActionButton icon="plus" primary onClick={props.onPrimary} disabled={props.booting || !canChat && props.opening.targetSection === 'chat'}>{props.opening.actionLabel}</ActionButton>
+          <ActionButton icon="history" onClick={props.onContinue} disabled={props.booting || isOffline}>Continuar última</ActionButton>
+          <ActionButton icon="folder" onClick={props.onChooseWorkspace} disabled={props.booting}>Elegir workspace</ActionButton>
+          <ActionButton icon="refresh" onClick={props.onRefresh} disabled={props.booting}>Reintentar</ActionButton>
+        </div>
+
+        {isOffline && (
+          <details className="opening-connection">
+            <summary>Configurar conexión</summary>
+            <div className="connection-grid">
+              <label>
+                <span>API base</span>
+                <input value={props.apiBase} onChange={(event) => props.onApiConfigChange({ apiBase: event.target.value })} />
+              </label>
+              <label>
+                <span>Token</span>
+                <input type="password" value={props.apiToken} onChange={(event) => props.onApiConfigChange({ apiToken: event.target.value })} />
+              </label>
+            </div>
+          </details>
+        )}
       </div>
     );
   }
@@ -608,7 +1110,36 @@ export function ControlSections(props: Props) {
                   <span>{new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   {turn.status && <StatusBadge status={turn.status} />}
                 </div>
-                <div className="message-text">{turn.text || (turn.status === 'running' ? 'Procesando…' : '')}</div>
+                {turn.text?.startsWith('__BAGO_CLARIFY__') ? (() => {
+                  try {
+                    const payload = JSON.parse(turn.text.slice('__BAGO_CLARIFY__'.length)) as {
+                      question: string;
+                      options: { id: string; label: string; prefix: string }[];
+                      original: string;
+                    };
+                    return (
+                      <div className="clarify-card">
+                        <p className="clarify-question">{payload.question}</p>
+                        <div className="clarify-options">
+                          {payload.options.map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className="clarify-option-btn"
+                              onClick={() => void props.onSendChat(`${opt.prefix}: ${payload.original}`)}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  } catch {
+                    return <div className="message-text">{turn.text}</div>;
+                  }
+                })() : (
+                  <div className="message-text">{turn.text || (turn.status === 'running' ? 'Procesando…' : '')}</div>
+                )}
                 {props.chatMode === 'trace' && turn.role === 'assistant' && (
                   <div className="message-trace">
                     <Icon name="trace" size={14} />
@@ -650,6 +1181,7 @@ export function ControlSections(props: Props) {
 
   if (props.section === 'workspace') {
     const workspaceFilters: WorkspaceFilter[] = ['all', 'code', 'python', 'text', 'json', 'web', 'shell', 'other', 'directory'];
+    const selectedWorkspaceLabel = readText(selectedWorkspaceFile?.name) || workspaceContentPath || 'Ninguno seleccionado';
     const renderTree = (nodes: ExplorerNode[], depth = 0): React.ReactNode => nodes.map((node) => {
       const expanded = isWorkspaceExpanded(node.path);
       const selected = node.path === workspaceActivePath;
@@ -767,7 +1299,7 @@ export function ControlSections(props: Props) {
             <div className="workspace-viewer-head">
               <div>
                 <span className="surface-eyebrow">Archivo</span>
-                <h3>{selectedWorkspaceFile?.name || workspaceContentPath || 'Ninguno seleccionado'}</h3>
+                <h3>{selectedWorkspaceLabel}</h3>
                 <span className="workspace-viewer-kind">{workspaceContentKind}</span>
               </div>
               <div className="workspace-viewer-actions">
@@ -1120,10 +1652,83 @@ export function ControlSections(props: Props) {
     );
   }
 
-  const providers = props.providers?.providers || [];
+  if (props.section === 'providers') {
+    const providers = props.providers?.providers || [];
+    const routerEntries = props.router?.policy?.entries || props.router?.list?.entries || [];
+    const routerAuto = Boolean(props.router?.policy?.auto_switch ?? props.router?.list?.auto_switch);
+    const routerSelectedCount = props.router?.policy?.selected_count ?? props.router?.list?.selected_count ?? routerEntries.filter((entry) => Boolean(entry.selected)).length;
+    const routerLastPick = String(props.router?.policy?.last_pick || props.router?.list?.last_pick || '—');
+    return (
+      <div className="system-surface">
+        <ProviderCenterModule
+          title="Centro de proveedores"
+          subtitle="Pantalla independiente para ver, activar y revisar proveedores y modelos."
+          frameworkLabel={String(snapshot?.framework.root || 'No confirmado')}
+          projectLabel={String(snapshot?.project.root || 'No confirmado')}
+          scopeLabel={String(snapshot?.workspace.scopeRoot || 'No confirmado')}
+          providers={providers.map((provider, index): ProviderCenterProvider => ({
+            id: String(provider.id || provider.name || index),
+            name: String(provider.name || provider.id || 'Provider'),
+            description: String(provider.description || ''),
+            state: String(provider.state || ''),
+            configured: Boolean(provider.configured ?? false),
+            modelCount: Array.isArray(provider.models) ? provider.models.length : Number(provider.modelCount ?? 0),
+            models: Array.isArray(provider.models) ? provider.models.map((model) => String(model)).filter(Boolean) : [],
+            raw: provider
+          }))}
+          routerEntries={routerEntries.map((entry, index): ProviderCenterRouterEntry => ({
+            id: String(entry.key || `${entry.provider || 'provider'}:${entry.model_id || entry.wire_name || index}`),
+            label: String(entry.wire_name || entry.model_id || entry.provider || 'Modelo'),
+            provider: String(entry.provider || ''),
+            bestFor: String(entry.best_for || entry.provider || ''),
+            available: Boolean(entry.available),
+            selected: Boolean(entry.selected),
+            contextTokens: Number(entry.context_tokens ?? 0) || undefined,
+            raw: entry
+          }))}
+          routerAuto={routerAuto}
+          routerSelectedCount={routerSelectedCount}
+          routerLastPick={routerLastPick}
+          sessionModel={props.sessionModel}
+          onRefreshRouter={() => void props.onRefreshRouter?.()}
+          onSetRouterAuto={(enabled) => void props.onSetRouterAuto(enabled)}
+          onToggleRouter={(key) => void props.onToggleRouter(key)}
+          onConfigureProvider={props.onConfigureProvider}
+          onSetSessionModel={props.onSetSessionModel}
+          onInspectProvider={(provider) => props.onInspect(buildSelection(
+            provider.id,
+            'provider',
+            provider.name,
+            provider.description || provider.state || 'Sin descripción',
+            [
+              `configured: ${String(provider.configured ?? false)}`,
+              `models: ${String(provider.modelCount ?? 0)}`
+            ],
+            provider.raw
+          ))}
+          onInspectRouterEntry={(entry) => props.onInspect(buildSelection(
+            entry.id,
+            'router-entry',
+            entry.label,
+            entry.bestFor || entry.provider || 'Sin descripción',
+            [
+              `provider: ${String(entry.provider || 'unknown')}`,
+              `available: ${String(Boolean(entry.available))}`,
+              `selected: ${String(Boolean(entry.selected))}`,
+              `context_tokens: ${String(entry.contextTokens ?? 'unknown')}`
+            ],
+            entry.raw
+          ))}
+        />
+      </div>
+    );
+  }
+
+  const recentJobs = Array.isArray(snapshot?.jobs) ? snapshot.jobs.slice(0, 6) : [];
   const systemItems = [
     { label: 'Herramientas', state: snapshot?.permissions.canRunTools ? 'confirmed' : 'blocked', detail: `${snapshot?.system.activeBridges?.length || 0} bridges activos`, icon: 'actions' as IconName },
-    { label: 'Contexto', state: snapshot?.context.state || 'unknown', detail: snapshot?.context.receiptId || 'Sin receipt', icon: 'context' as IconName }
+    { label: 'Contexto', state: snapshot?.context.state || 'unknown', detail: snapshot?.context.receiptId || 'Sin receipt', icon: 'context' as IconName },
+    { label: 'Router', state: routerSelectedCount > 0 ? 'confirmed' : 'blocked', detail: `${routerSelectedCount} modelos seleccionados`, icon: 'model' as IconName }
   ];
   return (
     <div className="system-surface">
@@ -1144,25 +1749,57 @@ export function ControlSections(props: Props) {
 
       <section className="system-secondary-grid">
         <article className="system-panel">
-          <div className="compact-list">
-            {providers.slice(0, 8).map((provider, index) => (
-              <button
-                key={String(provider.id || provider.name || index)}
-                type="button"
-                onClick={() => props.onInspect(buildSelection(
-                  String(provider.id || provider.name || index),
-                  'provider',
-                  String(provider.name || provider.id || 'Provider'),
-                  String(provider.description || provider.state || 'Sin descripción'),
-                  [`configured: ${String(provider.configured ?? false)}`, `models: ${Array.isArray(provider.models) ? provider.models.length : 0}`],
-                  provider
-                ))}
-              >
-                <span className="compact-list-icon"><Icon name="model" size={16} /></span>
-                <span><strong>{String(provider.name || provider.id || 'Provider')}</strong><small>{String(provider.state || provider.description || '')}</small></span>
-                <Icon name="chevron" size={14} />
+          <div className="system-panel-head">
+            <div>
+              <span className="surface-eyebrow">Router</span>
+              <strong>{routerSelectedCount ? `${routerSelectedCount} seleccionados` : 'Sin selección activa'}</strong>
+            </div>
+            <div className="system-panel-actions">
+              <button className="text-button" type="button" onClick={() => void props.onRefreshRouter?.()}>
+                <Icon name="refresh" size={14} /> Refrescar
               </button>
-            ))}
+              <button className={`text-button ${routerAuto ? 'is-active' : ''}`} type="button" onClick={() => void props.onSetRouterAuto(!routerAuto)}>
+                <Icon name="layout" size={14} /> Auto {routerAuto ? 'on' : 'off'}
+              </button>
+            </div>
+          </div>
+          <div className="compact-list">
+            {routerEntries.slice(0, 8).map((entry, index) => {
+              const key = String(entry.key || `${entry.provider || 'provider'}:${entry.model_id || entry.wire_name || index}`);
+              return (
+                <div key={key} className="system-router-row">
+                  <button
+                    type="button"
+                    onClick={() => props.onInspect(buildSelection(
+                      key,
+                      'router-entry',
+                      String(entry.wire_name || entry.model_id || entry.provider || 'Modelo'),
+                      String(entry.best_for || entry.wire_name || entry.model_id || 'Sin descripción'),
+                      [
+                        `provider: ${String(entry.provider || 'unknown')}`,
+                        `available: ${String(Boolean(entry.available))}`,
+                        `selected: ${String(Boolean(entry.selected))}`,
+                        `context_tokens: ${String(entry.context_tokens ?? 'unknown')}`
+                      ],
+                      entry
+                    ))}
+                  >
+                    <span className="compact-list-icon"><Icon name="model" size={16} /></span>
+                    <span><strong>{String(entry.wire_name || entry.model_id || entry.provider || 'Modelo')}</strong><small>{String(entry.best_for || entry.provider || '')}</small></span>
+                    <StatusBadge status={entry.selected ? 'confirmed' : entry.available === false ? 'blocked' : 'unknown'} />
+                  </button>
+                  <button className="secondary-button compact" type="button" onClick={() => void props.onToggleRouter(key)}>
+                    {entry.selected ? 'Quitar' : 'Usar'}
+                  </button>
+                </div>
+              );
+            })}
+            {!routerEntries.length && (
+              <div className="palette-empty">No hay política de router disponible.</div>
+            )}
+          </div>
+          <div className="system-panel-foot">
+            <span>Última selección: {routerLastPick}</span>
           </div>
         </article>
 
@@ -1171,7 +1808,22 @@ export function ControlSections(props: Props) {
             <div><dt>Framework</dt><dd>{snapshot?.framework.root || 'No confirmado'}</dd></div>
             <div><dt>Proyecto</dt><dd>{snapshot?.project.root || 'No confirmado'}</dd></div>
             <div><dt>Scope</dt><dd>{snapshot?.workspace.scopeRoot || 'No confirmado'}</dd></div>
+            <div><dt>Jobs</dt><dd>{recentJobs.length}</dd></div>
           </dl>
+          <div className="system-panel-actions">
+            <button className="text-button" type="button" onClick={() => void props.onRunCommand('/project status')}>
+              Estado proyecto <Icon name="chevron" size={14} />
+            </button>
+            <button className="text-button" type="button" onClick={() => void props.onRunCommand('/project analyze')}>
+              Analizar proyecto <Icon name="chevron" size={14} />
+            </button>
+            <button className="text-button" type="button" onClick={() => props.onSetSection('workspace')}>
+              Abrir workspace <Icon name="chevron" size={14} />
+            </button>
+            <button className="text-button" type="button" onClick={() => props.onSetSection('evidence')}>
+              Abrir evidencia <Icon name="chevron" size={14} />
+            </button>
+          </div>
           <button
             className="text-button"
             type="button"
@@ -1180,6 +1832,106 @@ export function ControlSections(props: Props) {
             Inspeccionar rutas API <Icon name="chevron" size={14} />
           </button>
         </article>
+
+        <article className="system-panel">
+          <div className="system-panel-head">
+            <div>
+              <span className="surface-eyebrow">Jobs</span>
+              <strong>{recentJobs.length ? `${recentJobs.length} recientes` : 'Sin jobs visibles'}</strong>
+            </div>
+            <button className="text-button" type="button" onClick={() => props.onSetSection('pipeline')}>
+              Ir a pipeline <Icon name="chevron" size={14} />
+            </button>
+          </div>
+          <div className="compact-list">
+            {recentJobs.map((job, index) => (
+              <button
+                key={String(job.execution_id || index)}
+                type="button"
+                onClick={() => props.onInspect(buildSelection(
+                  String(job.execution_id || index),
+                  'job',
+                  String(job.kind || 'job'),
+                  String(job.status || 'unknown'),
+                  [
+                    `execution_id: ${String(job.execution_id || 'unknown')}`,
+                    `status: ${String(job.status || 'unknown')}`,
+                    `kind: ${String(job.kind || 'unknown')}`
+                  ],
+                  job
+                ))}
+              >
+                <span className="compact-list-icon"><Icon name="history" size={16} /></span>
+                <span><strong>{String(job.kind || 'job')}</strong><small>{String(job.status || 'unknown')}</small></span>
+                <Icon name="chevron" size={14} />
+              </button>
+            ))}
+          </div>
+          <div className="system-panel-foot">
+            <span>Los jobs cancelables se resuelven en Pipeline.</span>
+          </div>
+        </article>
+
+        <ProviderCenterModule
+          title="Catálogo del sistema"
+          subtitle="Las tarjetas de esta superficie son reutilizables y pueden extraerse a otra app sin depender del shell de BAGO."
+          frameworkLabel={String(snapshot?.framework.root || 'No confirmado')}
+          projectLabel={String(snapshot?.project.root || 'No confirmado')}
+          scopeLabel={String(snapshot?.workspace.scopeRoot || 'No confirmado')}
+          providers={providers.map((provider, index): ProviderCenterProvider => ({
+            id: String(provider.id || provider.name || index),
+            name: String(provider.name || provider.id || 'Provider'),
+            description: String(provider.description || ''),
+            state: String(provider.state || ''),
+            configured: Boolean(provider.configured ?? false),
+            modelCount: Array.isArray(provider.models) ? provider.models.length : Number(provider.modelCount ?? 0),
+            models: Array.isArray(provider.models) ? provider.models.map((model) => String(model)).filter(Boolean) : [],
+            raw: provider
+          }))}
+          routerEntries={routerEntries.map((entry, index): ProviderCenterRouterEntry => ({
+            id: String(entry.key || `${entry.provider || 'provider'}:${entry.model_id || entry.wire_name || index}`),
+            label: String(entry.wire_name || entry.model_id || entry.provider || 'Modelo'),
+            provider: String(entry.provider || ''),
+            bestFor: String(entry.best_for || entry.provider || ''),
+            available: Boolean(entry.available),
+            selected: Boolean(entry.selected),
+            contextTokens: Number(entry.context_tokens ?? 0) || undefined,
+            raw: entry
+          }))}
+          routerAuto={routerAuto}
+          routerSelectedCount={routerSelectedCount}
+          routerLastPick={routerLastPick}
+          sessionModel={props.sessionModel}
+          onRefreshRouter={() => void props.onRefreshRouter?.()}
+          onSetRouterAuto={(enabled) => void props.onSetRouterAuto(enabled)}
+          onToggleRouter={(key) => void props.onToggleRouter(key)}
+          onConfigureProvider={props.onConfigureProvider}
+          onSetSessionModel={props.onSetSessionModel}
+          onInspectProvider={(provider) => props.onInspect(buildSelection(
+            provider.id,
+            'provider',
+            provider.name,
+            provider.description || provider.state || 'Sin descripción',
+            [
+              `configured: ${String(provider.configured ?? false)}`,
+              `models: ${String(provider.modelCount ?? 0)}`
+            ],
+            provider.raw
+          ))}
+          onInspectRouterEntry={(entry) => props.onInspect(buildSelection(
+            entry.id,
+            'router-entry',
+            entry.label,
+            entry.bestFor || entry.provider || 'Sin descripción',
+            [
+              `provider: ${String(entry.provider || 'unknown')}`,
+              `available: ${String(Boolean(entry.available))}`,
+              `selected: ${String(Boolean(entry.selected))}`,
+              `context_tokens: ${String(entry.contextTokens ?? 'unknown')}`
+            ],
+            entry.raw
+          ))}
+        />
       </section>
     </div>
   );

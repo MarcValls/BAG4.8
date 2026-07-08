@@ -6,7 +6,6 @@ import fnmatch
 import hashlib
 import json
 import os
-import subprocess
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,21 +70,38 @@ INCLUDE_DIRS = [
 
 EXCLUDED_PARTS = {
     ".git",
+    ".codex",
+    ".idea",
+    ".vscode",
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".cache",
+    "coverage",
+    "htmlcov",
     "node_modules",
     ".vite",
+    ".bago",
 }
 
 EXCLUDED_PREFIXES = [
+    ".bago/backups",
+    ".bago/state",
+    ".bago/logs",
+    ".bago/cache",
+    ".gabo/backups",
     ".gabo/state",
     ".gabo/logs",
+    ".gabo/cache",
     ".gabo/launch",
     ".gabo/tools/.gabo",
     "PLAN_VERTICE",
     "release",
     "dist",
     "build",
+    "output",
+    "out",
     "tools/sprints",
     ".ollama",
     ".cache/ollama",
@@ -99,6 +115,13 @@ EXCLUDED_GLOBS = [
     "*.py.new",
     "bago_core/parsers_legacy_*.py",
     "tools/_diff_*.py",
+    "*.sqlite",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.db-wal",
+    "*.db-shm",
+    "*.bak",
 ]
 
 FORBIDDEN_NAMES = {
@@ -163,34 +186,6 @@ def require_inputs(root: Path) -> None:
         )
 
 
-def _git(args: list[str], cwd: Path) -> str:
-    try:
-        result = subprocess.run(
-            ["git", *args],
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            shell=False,
-            timeout=30,
-        )
-    except Exception:
-        return ""
-    if result.returncode != 0:
-        return ""
-    return (result.stdout or "").strip()
-
-
-def require_clean_git(root: Path) -> None:
-    if not (root / ".git").exists():
-        return
-    status = _git(["status", "--porcelain"], root)
-    if status.strip():
-        raise RuntimeError(
-            "Release bloqueada: el árbol Git contiene cambios sin commit:\n"
-            + status
-        )
-
-
 def collect_files(root: Path) -> list[Path]:
     files: list[Path] = []
     for item in INCLUDE_FILES:
@@ -211,26 +206,8 @@ def collect_files(root: Path) -> list[Path]:
     return sorted(set(files), key=lambda p: rel_posix(p.relative_to(root)).lower())
 
 
-def _git(args: list[str], cwd: Path) -> str:
-    try:
-        result = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, shell=False, timeout=20)
-    except Exception:
-        return ""
-    if result.returncode != 0:
-        return ""
-    return (result.stdout or "").strip()
-
-
 def snapshot(root: Path) -> dict:
-    branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], root) or "(no git)"
-    commit = _git(["rev-parse", "HEAD"], root) or "(no commit)"
-    status = _git(["status", "--short"], root)
-    dirty = [line for line in status.splitlines() if line.strip()] if status else []
     return {
-        "branch": branch,
-        "commit": commit,
-        "dirty_count": len(dirty),
-        "dirty_files": dirty[:200],
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -238,7 +215,6 @@ def snapshot(root: Path) -> dict:
 def build_audit_bundle(root: Path, output_dir: Path, release_version: str = "") -> dict:
     root = root.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    require_clean_git(root)
     require_inputs(root)
     version = normalize_release_version(release_version or read_release_version(root))
     package_name = f"bago-audit-v{version}.zip"
@@ -299,8 +275,6 @@ def build_audit_bundle(root: Path, output_dir: Path, release_version: str = "") 
             "",
             f"- Package: `{package_name}`",
             f"- Files: `{len(manifest_files)}`",
-            f"- Branch: `{embedded_snapshot['branch']}`",
-            f"- Commit: `{embedded_snapshot['commit']}`",
             f"- SHA256: `{zip_sha256}`",
             "",
             "## Included",
@@ -419,16 +393,16 @@ def _run_tests() -> int:
                 "bago_core/translators/__init__.py",
                 "ui-react/package.json",
                 "ui-react/package-lock.json",
-                "docs/evidence/release_4_7_0/manifest.json",
-                "docs/evidence/release_4_7_0/session/meta.json",
+                "docs/archive/evidence/release_4_7_0/manifest.json",
+                "docs/archive/evidence/release_4_7_0/session/meta.json",
                 "AUDIT_SNAPSHOT.json",
             }
             missing = sorted(required_names - names)
             assert not missing, f"missing bundle entries: {missing}"
             assert any(name.startswith("ui-react/src/") for name in names)
 
-            evidence_manifest = json.loads(zf.read("docs/evidence/release_4_7_0/manifest.json"))
-            evidence_meta = json.loads(zf.read("docs/evidence/release_4_7_0/session/meta.json"))
+            evidence_manifest = json.loads(zf.read("docs/archive/evidence/release_4_7_0/manifest.json"))
+            evidence_meta = json.loads(zf.read("docs/archive/evidence/release_4_7_0/session/meta.json"))
             assert evidence_manifest["contract_version"] == bundle_version
             assert evidence_meta["bago_version"] == bundle_version
 

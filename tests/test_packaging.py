@@ -101,6 +101,37 @@ def test_zip_excludes_state(pack_zip):
     assert len(state_files) == 0, f"Live state files in ZIP: {state_files[:3]}"
 
 
+def test_zip_excludes_bago_backups(pack_zip):
+    with zipfile.ZipFile(pack_zip) as zf:
+        names = zf.namelist()
+    leaked = [n for n in names if n.startswith(".bago/backups/") or "/.bago/backups/" in ("/" + n)]
+    assert len(leaked) == 0, f"Backups leaked into ZIP: {leaked[:3]}"
+
+
+def test_zip_excludes_common_generated_junk(pack_zip):
+    with zipfile.ZipFile(pack_zip) as zf:
+        names = zf.namelist()
+    leaked = [
+        n for n in names
+        if n.startswith((
+            ".codex/",
+            ".idea/",
+            ".vscode/",
+            ".mypy_cache/",
+            ".ruff_cache/",
+            ".cache/",
+            "coverage/",
+            "htmlcov/",
+            "output/",
+            "out/",
+        ))
+        or "/.gabo/backups/" in ("/" + n)
+        or "/.gabo/cache/" in ("/" + n)
+        or "/.gabo/logs/" in ("/" + n)
+    ]
+    assert len(leaked) == 0, f"Generated junk leaked into ZIP: {leaked[:5]}"
+
+
 def test_zip_excludes_credentials(pack_zip):
     import re
     with zipfile.ZipFile(pack_zip) as zf:

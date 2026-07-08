@@ -6,6 +6,7 @@ function createRuntimeService(ctx) {
     execFile,
     spawn,
     fs,
+    net,
     path,
     os,
     BrowserWindow,
@@ -18,6 +19,7 @@ function createRuntimeService(ctx) {
     resolveBundledRuntimeRoot,
     resolveInstalledRuntimeRoot,
     resolveDevelopmentRuntimeRoot,
+    resolvePythonCommand,
     runVisiblePowerShell
   } = ctx;
 
@@ -37,6 +39,23 @@ function createRuntimeService(ctx) {
     return `'${String(value || '').replace(/'/g, "''")}'`;
   }
 
+  function resolveDefaultBasePath(runtimeRoot) {
+    const installedRoot = resolveInstalledRuntimeRoot();
+    if (installedRoot) return installedRoot;
+    const devRoot = resolveDevelopmentRuntimeRoot();
+    if (devRoot) return devRoot;
+    return runtimeRoot;
+  }
+
+  function pythonRuntime() {
+    return resolvePythonCommand();
+  }
+
+  function pythonArgs(args) {
+    const runtime = pythonRuntime();
+    return { runtime, args: [...runtime.argsPrefix, ...args] };
+  }
+
   function webChatStatus() {
     const procAlive = !!(webChatProcess && webChatProcess.exitCode === null && !webChatProcess.killed);
     const windowAlive = !!(webChatWindow && !webChatWindow.isDestroyed());
@@ -50,17 +69,39 @@ function createRuntimeService(ctx) {
 
   async function probeWebChat(port) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
+    const timer = setTimeout(() => controller.abort(), 2500);
     try {
-      const response = await fetch(`http://${CHAT_HOST}:${port}/session`, { signal: controller.signal });
+      const response = await fetch(`http://${CHAT_HOST}:${port}/health`, { signal: controller.signal });
       if (!response.ok) return false;
       const data = await response.json();
-      return !!(data && data.session_id && data.provider);
+      return !!(data && data.ok && data.ready);
     } catch {
       return false;
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  async function isTcpPortOccupied(port) {
+    return await new Promise((resolve) => {
+      const socket = net.createConnection({ host: CHAT_HOST, port });
+      const finish = (occupied) => {
+        socket.removeAllListeners();
+        try { socket.destroy(); } catch {}
+        resolve(occupied);
+      };
+      socket.setTimeout(700);
+      socket.once('connect', () => finish(true));
+      socket.once('timeout', () => finish(false));
+      socket.once('error', (error) => {
+        const code = String(error && error.code || '');
+        if (code === 'ECONNREFUSED' || code === 'EHOSTUNREACH' || code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') {
+          finish(false);
+          return;
+        }
+        finish(true);
+      });
+    });
   }
 
   async function waitForWebChat(port, timeoutMs = 12000) {
@@ -75,7 +116,7 @@ function createRuntimeService(ctx) {
   async function ensureWebChatServer(options = {}) {
     const requestedBasePath = String(options.basePath || '').trim();
     const runtimeRoot = resolveBagoRuntimeRoot();
-    const basePath = requestedBasePath || runtimeRoot;
+    const basePath = requestedBasePath || resolveDefaultBasePath(runtimeRoot);
     const uiDist = resolveUiDist(runtimeRoot);
     const mayReuseExternal = Boolean(options.reuseExternal) && (!requestedBasePath || requestedBasePath === runtimeRoot);
     if (!uiDist) {
@@ -104,7 +145,8 @@ function createRuntimeService(ctx) {
       return webChatState;
     }
 
-    for (let port = CHAT_START_PORT; port < CHAT_START_PORT + 12; port += 1) {
+    const startPort = Number.isFinite(CHAT_START_PORT) && CHAT_START_PORT > 0 ? CHAT_START_PORT : 8080;
+    for (let port = startPort; port < startPort + 32; port += 1) {
       if (await probeWebChat(port)) {
         if (!mayReuseExternal) continue;
         webChatState = {
@@ -119,23 +161,39 @@ function createRuntimeService(ctx) {
         return webChatState;
       }
 
-      const child = spawn(
-        'python',
-        [
+      if (await isTcpPortOccupied(port)) {
+        continue;
+      }
+
+      const invocation = pythonArgs([
           '-m', 'bago_core.launcher',
           '--base-path', basePath,
           'serve',
           '--host', CHAT_HOST,
           '--port', String(port),
           '--ui-dist', uiDist
-        ],
+        ]);
+      let spawnError = null;
+      let stderrText = '';
+      const child = spawn(
+        invocation.runtime.command,
+        invocation.args,
         {
           cwd: runtimeRoot,
-          stdio: 'ignore',
+          env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+          stdio: ['ignore', 'ignore', 'pipe'],
           windowsHide: true
         }
       );
       webChatProcess = child;
+      child.once('error', (error) => {
+        spawnError = error;
+      });
+      if (child.stderr) {
+        child.stderr.on('data', (chunk) => {
+          if (stderrText.length < 8192) stderrText += String(chunk || '');
+        });
+      }
       child.once('exit', () => {
         if (webChatProcess === child) webChatProcess = null;
       });
@@ -156,6 +214,18 @@ function createRuntimeService(ctx) {
       }
 
       try { child.kill(); } catch {}
+      if (spawnError || child.exitCode !== null || stderrText.trim()) {
+        const details = [
+          `python=${invocation.runtime.display}`,
+          `cwd=${runtimeRoot}`,
+          `base_path=${basePath}`,
+          `port=${port}`,
+        ];
+        if (spawnError) details.push(`spawn=${spawnError.message}`);
+        if (child.exitCode !== null) details.push(`exit=${child.exitCode}`);
+        if (stderrText.trim()) details.push(`stderr=${stderrText.trim()}`);
+        throw new Error(`No se pudo arrancar BAGO web chat (${details.join(' · ')})`);
+      }
     }
 
     throw new Error('No se pudo arrancar BAGO web chat en un puerto local libre');
@@ -194,11 +264,33 @@ function createRuntimeService(ctx) {
     return { ...state, focused: false };
   }
 
-  async function chooseWorkspaceRoot() {
+  function stopWebChatProcess() {
+    if (webChatWindow && !webChatWindow.isDestroyed()) {
+      try { webChatWindow.removeAllListeners('closed'); } catch {}
+      try { webChatWindow.close(); } catch {}
+      try { webChatWindow.destroy(); } catch {}
+      webChatWindow = null;
+    }
+    if (webChatProcess && webChatProcess.exitCode === null && !webChatProcess.killed) {
+      try {
+        if (process.platform === 'win32' && webChatProcess.pid) {
+          spawn('taskkill.exe', ['/PID', String(webChatProcess.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
+        } else {
+          webChatProcess.kill('SIGTERM');
+        }
+      } catch {}
+    }
+    webChatProcess = null;
+    webChatState = null;
+  }
+
+  async function chooseWorkspaceRoot(options = {}) {
     if (!dialog || typeof dialog.showOpenDialog !== 'function') {
       throw new Error('Dialog de sistema no disponible');
     }
+    const defaultPath = String(options.defaultPath || options.basePath || options.initialPath || '').trim();
     const result = await dialog.showOpenDialog({
+      defaultPath: defaultPath || undefined,
       properties: ['openDirectory', 'createDirectory', 'promptToCreate']
     });
     if (result.canceled || !Array.isArray(result.filePaths) || !result.filePaths.length) {
@@ -215,8 +307,12 @@ function createRuntimeService(ctx) {
         reject(new Error('Ruta de workspace vacía'));
         return;
       }
-      const script = path.join(ROOT_DIR, '.gabo', 'tools', 'project_memory.py');
-      if (!fs.existsSync(script)) {
+      const scriptCandidates = [
+        path.join(ROOT_DIR, '.bago', 'tools', 'project_memory.py'),
+        path.join(ROOT_DIR, '.gabo', 'tools', 'project_memory.py')
+      ];
+      const script = scriptCandidates.find(candidate => fs.existsSync(candidate));
+      if (!script) {
         reject(new Error(`project_memory.py no encontrado en ${ROOT_DIR}`));
         return;
       }
@@ -245,7 +341,7 @@ function createRuntimeService(ctx) {
   function openCliChat(options = {}) {
     const developmentRoot = resolveDevelopmentRuntimeRoot();
     const runtimeRoot = developmentRoot || resolveBagoRuntimeRoot();
-    const basePath = String(options.basePath || '').trim() || runtimeRoot;
+    const basePath = String(options.basePath || '').trim() || resolveDefaultBasePath(runtimeRoot);
     const provider = String(options.provider || '').trim();
     const model = String(options.model || '').trim();
     const sessionId = String(options.sessionId || '').trim();
@@ -256,9 +352,10 @@ function createRuntimeService(ctx) {
       return runBagoSession(sessionArgs).then(() => {
         const providerArgs = provider ? ` --provider ${psSingleArg(provider)}` : '';
         const modelArgs = model ? ` --model ${psSingleArg(model)}` : '';
+        const python = pythonRuntime();
         const command = [
           `Set-Location -LiteralPath ${psSingleArg(runtimeRoot)}`,
-          `python -m bago_core.launcher --base-path ${psSingleArg(basePath)}${providerArgs}${modelArgs} chat`
+          `& ${psSingleArg(python.command)} ${python.argsPrefix.map(psSingleArg).join(' ')} -m bago_core.launcher --base-path ${psSingleArg(basePath)}${providerArgs}${modelArgs} chat`.replace('  ', ' ')
         ].join('; ');
         return {
           ok: true,
@@ -270,11 +367,12 @@ function createRuntimeService(ctx) {
         };
       });
     }
-    const providerArgs = provider ? ` --provider ${psSingleArg(provider)}` : '';
-    const modelArgs = model ? ` --model ${psSingleArg(model)}` : '';
-    const command = [
-      `Set-Location -LiteralPath ${psSingleArg(runtimeRoot)}`,
-      `python -m bago_core.launcher --base-path ${psSingleArg(basePath)}${providerArgs}${modelArgs} chat`
+      const providerArgs = provider ? ` --provider ${psSingleArg(provider)}` : '';
+      const modelArgs = model ? ` --model ${psSingleArg(model)}` : '';
+      const python = pythonRuntime();
+      const command = [
+          `Set-Location -LiteralPath ${psSingleArg(runtimeRoot)}`,
+          `& ${psSingleArg(python.command)} ${python.argsPrefix.map(psSingleArg).join(' ')} -m bago_core.launcher --base-path ${psSingleArg(basePath)}${providerArgs}${modelArgs} chat`.replace('  ', ' ')
     ].join('; ');
     return {
       ok: true,
@@ -302,6 +400,7 @@ function createRuntimeService(ctx) {
         reject(error);
         return;
       }
+      const basePath = resolveDefaultBasePath(runtimeRoot);
       const action = nodeAction(safe);
       const mutating = MUTATING_NODE_COMMANDS.has(action);
       if (mutating && activeNodeMutation) {
@@ -320,11 +419,12 @@ function createRuntimeService(ctx) {
         if (!/[\s'"&|<>^]/.test(s)) return s;
         return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       };
-      const cmd = `python -m bago_core.launcher ${safe.map(formatCmdArg).join(' ')}`;
+      const invocation = pythonArgs(['-m', 'bago_core.launcher', ...safe]);
+      const cmd = `${formatCmdArg(invocation.runtime.display)} ${invocation.args.map(formatCmdArg).join(' ')}`;
       execFile(
-        'python',
-        ['-m', 'bago_core.launcher', ...safe],
-        { cwd: runtimeRoot, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+        invocation.runtime.command,
+        invocation.args,
+        { cwd: runtimeRoot, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
         (error, stdout, stderr) => {
           if (mutating) activeNodeMutation = null;
           if (error) {
@@ -347,10 +447,12 @@ function createRuntimeService(ctx) {
         reject(error);
         return;
       }
+      const basePath = resolveDefaultBasePath(runtimeRoot);
+      const invocation = pythonArgs(['-m', 'bago_core.session_control', '--base-path', basePath, ...safe]);
       execFile(
-        'python',
-        ['-m', 'bago_core.session_control', '--base-path', runtimeRoot, ...safe],
-        { cwd: runtimeRoot, windowsHide: true, timeout: 180000, maxBuffer: 16 * 1024 * 1024 },
+        invocation.runtime.command,
+        invocation.args,
+        { cwd: runtimeRoot, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }, windowsHide: true, timeout: 180000, maxBuffer: 16 * 1024 * 1024 },
         (error, stdout, stderr) => {
           let parsed;
           try {
@@ -407,7 +509,7 @@ function createRuntimeService(ctx) {
     const managedPaths = [];
     try { managedPaths.push(resolveBundledRuntimeRoot()); } catch {}
     try { managedPaths.push(resolveInstalledRuntimeRoot()); } catch {}
-    try { managedPaths.push(path.join(os.homedir(), '.gabo')); } catch {}
+    try { managedPaths.push(path.join(os.homedir(), '.bago')); } catch {}
     const allowList = managedPaths.filter(Boolean).map(p => p.replace(/\\/g, '\\\\').replace(/'/g, "''"));
     const scriptMarkers = ['launcher.py', 'bago_webchat.py', 'bago_supervisor.py', 'bridge.py'];
     const allowListJson = JSON.stringify(allowList);
@@ -472,6 +574,69 @@ function createRuntimeService(ctx) {
     });
   }
 
+  async function cleanupManagedRuntime() {
+    const cleanRoot = String(ROOT_DIR || '').replace(/\\/g, '\\\\').replace(/'/g, "''");
+    const command = `
+      $root = '${cleanRoot}';
+      $patterns = @(
+        ('-m bago_core.launcher'),
+        ('--base-path ' + $root),
+        ('bago_core\\\\launcher.py'),
+        ('bago_core/session_control'),
+        ('bago_webchat'),
+        ('--ui-dist ' + $root)
+      );
+      $pids = @();
+      Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -in @('python.exe', 'pythonw.exe', 'node.exe') -and $_.CommandLine
+      } | ForEach-Object {
+        $cmd = $_.CommandLine;
+        $match = $false;
+        foreach ($pattern in $patterns) {
+          if ($cmd -like ('*' + $pattern + '*')) { $match = $true; break; }
+        }
+        if ($match) {
+          $pids += $_.ProcessId;
+        }
+      }
+      $pids = $pids | Select-Object -Unique;
+      foreach ($pid in $pids) {
+        try {
+          Start-Process -FilePath taskkill.exe -ArgumentList @('/PID', [string]$pid, '/T', '/F') -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
+      }
+      [ordered]@{ ok = $true; cleaned = $pids.Count; pids = $pids } | ConvertTo-Json -Depth 4 -Compress
+    `;
+    return new Promise((resolve, reject) => {
+      execFile(
+        'powershell.exe',
+        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+        { windowsHide: true, timeout: 20000 },
+        (error, stdout) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          try {
+            resolve(JSON.parse(stdout.trim()));
+          } catch {
+            resolve({ ok: true, text: stdout.trim() });
+          }
+        }
+      );
+    });
+  }
+
+  async function shutdown() {
+    stopWebChatProcess();
+    try {
+      await cleanupManagedRuntime();
+    } catch {}
+    try {
+      await cleanupZombies();
+    } catch {}
+  }
+
   function getManagerUrl() {
     if (app.isPackaged) {
       try {
@@ -500,6 +665,7 @@ function createRuntimeService(ctx) {
     runBagoSession,
     runSupervisorCmd,
     cleanupZombies,
+    shutdown,
     getManagerUrl,
     getState
   };

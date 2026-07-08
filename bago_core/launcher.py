@@ -225,9 +225,10 @@ def cmd_profiles(args: argparse.Namespace) -> int:
     """Muestra el mapa estable de active/des/ign y el flujo recomendado."""
     dev_root = workspace_root() / "dev"
     launch_root = workspace_root() / "launch"
+    stable_root = _profile_root("stable")
     print("BAGO profiles")
     print("----------------------------------------")
-    print("stable : C:\\Program Files\\BAGO")
+    print(f"stable : {stable_root}")
     print(f"des    : {dev_root}")
     print(f"ign    : {launch_root}")
     print("")

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
-
-DEFAULT_TRUE_ROOT = Path(r"C:\bago_true\.bago")
-DEFAULT_APPDATA_ROOT = Path(r"C:\Users\AMTEC_Terminal_1o\AppData\Local\Programs\BAGO")
 
 EXPECTED_TRUE_SUBSYSTEMS = [
     "agents",
@@ -32,6 +30,67 @@ EXCLUDED_NAMES = {
     "__pycache__",
 }
 
+
+def _path_candidates(*values: str | Path | None) -> list[Path]:
+    candidates: list[Path] = []
+    for value in values:
+        if not value:
+            continue
+        try:
+            candidates.append(Path(value))
+        except Exception:
+            continue
+    return candidates
+
+
+def _first_existing_dir(candidates: list[Path]) -> Path | None:
+    for candidate in candidates:
+        try:
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+        except Exception:
+            continue
+    return None
+
+
+def _resolve_true_root(root: str | Path | None = None) -> Path:
+    if root:
+        return Path(root)
+    home = Path.home()
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    program_data = os.environ.get("ProgramData")
+    program_files = os.environ.get("ProgramFiles")
+    candidates = _path_candidates(
+        os.environ.get("BAGO_TRUE_ROOT"),
+        os.environ.get("BAGO_TRUE_HOME"),
+        os.environ.get("BAGO_ROOT"),
+        home / "bago_true" / ".bago",
+        home / "BAGO_TRUE" / ".bago",
+        home / ".bago_true",
+        Path(local_app_data) / "BAGO" / "true" if local_app_data else None,
+        Path(local_app_data) / "BAGO" if local_app_data else None,
+        Path(program_data) / "BAGO" / "true" if program_data else None,
+        Path(program_files) / "BAGO" if program_files else None,
+    )
+    return _first_existing_dir(candidates) or candidates[0]
+
+
+def _resolve_appdata_root(root: str | Path | None = None) -> Path:
+    if root:
+        return Path(root)
+    home = Path.home()
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    program_files = os.environ.get("ProgramFiles")
+    candidates = _path_candidates(
+        os.environ.get("BAGO_APPDATA_ROOT"),
+        os.environ.get("BAGO_INSTALL_ROOT"),
+        Path(local_app_data) / "Programs" / "BAGO" if local_app_data else None,
+        Path(local_app_data) / "BAGO" if local_app_data else None,
+        Path(home) / "AppData" / "Local" / "Programs" / "BAGO",
+        Path(program_files) / "BAGO" if program_files else None,
+    )
+    return _first_existing_dir(candidates) or candidates[0]
+
 def _safe_read_text(path: Path, limit: int = 300_000) -> str:
     if not path.exists() or not path.is_file():
         return ""
@@ -57,7 +116,7 @@ def _dir_status(root: Path, names: list[str]) -> list[dict[str, Any]]:
     return items
 
 def detect_bago_true(root: str | Path | None = None) -> dict[str, Any]:
-    true_root = Path(root) if root else DEFAULT_TRUE_ROOT
+    true_root = _resolve_true_root(root)
     available = true_root.exists() and true_root.is_dir()
     install_config = _json_file(true_root / "install_config.json") if available else {}
 
@@ -92,7 +151,7 @@ def detect_bago_true(root: str | Path | None = None) -> dict[str, Any]:
     }
 
 def detect_appdata(root: str | Path | None = None) -> dict[str, Any]:
-    app_root = Path(root) if root else DEFAULT_APPDATA_ROOT
+    app_root = _resolve_appdata_root(root)
     available = app_root.exists() and app_root.is_dir()
     launcher = app_root / "bago_core" / "launcher.py"
     runtime_contract = app_root / "runtime_contract.json"

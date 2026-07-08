@@ -26,7 +26,8 @@ const sectionLabels: Record<ActiveSection, string> = {
   pipeline: 'Pipeline',
   evidence: 'Evidencia',
   context: 'Contexto',
-  system: 'Sistema'
+  system: 'Sistema',
+  providers: 'Proveedores'
 };
 
 function StatePill({ state }: { state: string }) {
@@ -56,6 +57,9 @@ export function GlobalHeader(props: Props) {
         <div className="focus-header-actions">
           <button className="header-button" type="button" onClick={props.onOpenPalette}>
             <Icon name="actions" /> Cambiar tarea
+          </button>
+          <button className="header-button" type="button" onClick={props.onChooseWorkspace} title="Elegir workspace">
+            <Icon name="folder" /> Workspace
           </button>
           <button className="primary-button compact" type="button" onClick={() => props.onSetMode('normal')}>
             Salir de Focus
@@ -95,6 +99,10 @@ export function GlobalHeader(props: Props) {
           <Icon name="search" />
           <span>Buscar</span>
           <kbd>Ctrl K</kbd>
+        </button>
+        <button className="header-button" type="button" onClick={props.onChooseWorkspace} title="Elegir workspace">
+          <Icon name="folder" />
+          <span>Workspace</span>
         </button>
         <button className="header-button" type="button" onClick={props.onOpenPalette}>
           <Icon name="actions" />

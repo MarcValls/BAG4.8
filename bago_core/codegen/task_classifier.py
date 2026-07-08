@@ -110,6 +110,21 @@ _CREATE_HINTS = (
     "add file",
     "scaffold",
     "bootstrap",
+    # Spanish write/generate verbs for file creation
+    "escribe",
+    "escribir",
+    "escribelo",
+    "escríbelo",
+    "redacta",
+    "redactar",
+    "genera",
+    "generar",
+    "haz un archivo",
+    "haz un fichero",
+    "make a file",
+    "write a file",
+    "write file",
+    "write me",
 )
 _GENERATE_HINTS = (
     "genera",

@@ -27,6 +27,7 @@ class ProjectSeedRuntimeTests(unittest.TestCase):
 
             self.assertEqual(Path(report["root"]), root.resolve())
             self.assertTrue((root / ".gabo" / "workspace.json").is_file())
+            self.assertTrue((root / ".gabo" / "link.json").is_file())
             self.assertTrue((root / ".gabo" / "live.json").is_file())
             self.assertTrue((root / ".gabo" / "tree.json").is_file())
             self.assertTrue((root / ".gabo" / "index.md").is_file())
@@ -69,6 +70,36 @@ class ProjectSeedRuntimeTests(unittest.TestCase):
             self.assertTrue(result["ok"], msg=result["message"])
             self.assertIn("Seeded workspace", result["message"])
             self.assertTrue((root / ".gabo" / "seed.meta.json").is_file())
+
+    def test_project_command_seed_skips_rebind_when_root_is_already_active(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "README.md").write_text("# demo\n", encoding="utf-8")
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("def main():\n    return 1\n", encoding="utf-8")
+
+            class DummyMgr:
+                project_root = root
+                base_path = root
+
+                def rebind_project_root(self, _root):
+                    raise AssertionError("rebind_project_root should not run for the active root")
+
+            def fake_load_tool_module(name: str, filename: str):
+                return SimpleNamespace(
+                    resolve_project_root=lambda value, allow_fallback_cwd=False: root,
+                    seed_project=lambda project_root, depth=3, ref=None: project_memory.seed_project(project_root, depth=depth, ref=ref or project_root),
+                )
+
+            original = commands._load_tool_module
+            commands._load_tool_module = fake_load_tool_module
+            try:
+                result = commands.cmd_project(DummyMgr(), SimpleNamespace(), ["seed", str(root)])
+            finally:
+                commands._load_tool_module = original
+
+            self.assertTrue(result["ok"], msg=result["message"])
+            self.assertTrue((root / ".gabo" / "workspace.json").is_file())
 
     def test_terminal_bago_exec_can_seed_project(self) -> None:
         proc = subprocess.run(

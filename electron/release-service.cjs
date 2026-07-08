@@ -3,9 +3,13 @@ const { ReleaseJobManager } = require('./release-job-manager.cjs');
 function createReleaseService(ctx) {
   const { BrowserWindow, os, path, getDependencyService } = ctx;
   let releaseJobs = null;
-  const userRoot = process.env.LOCALAPPDATA
-    ? path.join(process.env.LOCALAPPDATA, 'BAGO')
-    : path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
+
+  function resolveUserRoot() {
+    const override = String(process.env.BAGO_USER_ROOT || process.env.BAGO_ROOT || '').trim();
+    if (override) return path.resolve(override);
+    if (process.env.LOCALAPPDATA) return path.join(process.env.LOCALAPPDATA, 'BAGO');
+    return path.join(os.homedir(), 'AppData', 'Local', 'BAGO');
+  }
 
   function requireReleaseJobs() {
     if (!releaseJobs) throw new Error('Release Job Manager no inicializado');
@@ -14,7 +18,7 @@ function createReleaseService(ctx) {
 
   function initReleaseJobs() {
     releaseJobs = new ReleaseJobManager({
-      rootDir: path.join(userRoot, 'manager', 'release-jobs')
+      rootDir: path.join(resolveUserRoot(), 'manager', 'release-jobs')
     });
     releaseJobs.on('changed', job => {
       for (const win of BrowserWindow.getAllWindows()) {

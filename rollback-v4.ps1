@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$BackupZip = "",
-    [string]$InstallDir = "C:\Program Files\BAGO",
+    [string]$InstallDir = "",
     [string]$BackupRoot = "$env:ProgramData\BAGO\backups",
     [switch]$RestoreBackedUpState,
     [switch]$SkipTests
@@ -9,6 +9,19 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function Get-DefaultInstallDir {
+    [string]$override = [System.Environment]::GetEnvironmentVariable("BAGO_INSTALL_DIR")
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return [System.IO.Path]::GetFullPath($override) }
+    [string]$programFilesRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.Environment]::GetEnvironmentVariable("ProgramFiles") }
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) { $programFilesRoot = [System.IO.Path]::GetTempPath() }
+    return (Join-Path $programFilesRoot "BAGO")
+}
+
+if ([string]::IsNullOrWhiteSpace($InstallDir)) {
+    $InstallDir = Get-DefaultInstallDir
+}
 
 function Get-FullPath {
     param([Parameter(Mandatory = $true)][string]$Path)

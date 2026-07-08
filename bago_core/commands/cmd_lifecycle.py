@@ -14,15 +14,35 @@ from pathlib import Path
 from typing import Any
 
 from bago_core.resolver import add_piece_paths
+from bago_core.user_state_paths import prune_backups_root
 from bago_core.workspace_paths import workspace_root
 
 BAGO_ROOT = Path(__file__).resolve().parents[2]
+
+def _program_files_root() -> Path:
+    override = os.environ.get("BAGO_INSTALL_DIR", "").strip()
+    if override:
+        return Path(override).expanduser().resolve().parent
+    root = os.environ.get("ProgramFiles", "").strip()
+    if root:
+        return Path(root)
+    return Path.home() / "AppData" / "Local" / "Programs"
+
+def _program_data_root() -> Path:
+    override = os.environ.get("BAGO_DATA_ROOT", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    root = os.environ.get("ProgramData", "").strip()
+    if root:
+        return Path(root)
+    return Path.home() / "AppData" / "Local"
+
 PROFILE_ROOTS = {
-    "stable": Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "BAGO",
+    "stable": _program_files_root() / "BAGO",
     "des": workspace_root() / "dev",
     "ign": workspace_root() / "launch",
 }
-PROFILE_DATA_ROOT = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO"
+PROFILE_DATA_ROOT = _program_data_root() / "BAGO"
 
 
 def _normalize_profile(profile: str) -> str:
@@ -61,7 +81,7 @@ def cmd_install(args: argparse.Namespace) -> int:
 
     root = BAGO_ROOT
     profile = _normalize_profile(args.profile) if getattr(args, "profile", "") else ""
-    install_dir = Path(args.install_dir) if args.install_dir else (_profile_install_dir(profile) if profile else Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "BAGO")
+    install_dir = Path(args.install_dir) if args.install_dir else (_profile_install_dir(profile) if profile else _program_files_root() / "BAGO")
     if args.source_root:
         source_root = Path(args.source_root)
     elif profile == "ign" and not args.package_zip:
@@ -223,8 +243,8 @@ def _needs_uninstall_elevation(install_dir: Path) -> bool:
     if os.name != "nt" or _is_windows_admin():
         return False
     protected_roots = [
-        os.environ.get("ProgramFiles", r"C:\Program Files"),
-        os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+        _program_files_root(),
+        Path(os.environ.get("ProgramFiles(x86)", "").strip()) if os.environ.get("ProgramFiles(x86)", "").strip() else Path.home() / "AppData" / "Local" / "Programs" / "x86",
     ]
     return any(_is_under_path(install_dir, root) for root in protected_roots if root)
 
@@ -272,9 +292,9 @@ def _rmtree_writable(path: Path) -> None:
 
 def cmd_uninstall(args: argparse.Namespace) -> int:
     profile = _normalize_profile(args.profile) if getattr(args, "profile", "") else ""
-    install_dir = Path(args.install_dir) if args.install_dir else (_profile_install_dir(profile) if profile else Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "BAGO")
-    backup_root = Path(args.backup_root) if args.backup_root else (_profile_backup_root(profile) if profile else (Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO" / "backups"))
-    user_state_dir = Path(args.user_state_dir) if args.user_state_dir else (_profile_user_state_dir(profile) if profile else (Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "BAGO" / "user"))
+    install_dir = Path(args.install_dir) if args.install_dir else (_profile_install_dir(profile) if profile else _program_files_root() / "BAGO")
+    backup_root = Path(args.backup_root) if args.backup_root else (_profile_backup_root(profile) if profile else (_program_data_root() / "BAGO" / "backups"))
+    user_state_dir = Path(args.user_state_dir) if args.user_state_dir else (_profile_user_state_dir(profile) if profile else (_program_data_root() / "BAGO" / "user"))
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     if not install_dir.exists():
@@ -312,6 +332,7 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
         print(f"[ERROR] No se pudo completar la desinstalacion: {exc}")
         return 1
     print(f"Backup creado: {backup_zip}")
+    prune_backups_root(backup_root)
     print(f"PATH limpiado : {removed_scope}")
     print(f"Menu contexto : {'si' if context_menu_removed else 'no'}")
     return 0
